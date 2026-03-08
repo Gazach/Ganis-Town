@@ -1,6 +1,12 @@
+import game.playersave;
+import system.window;
+
 public class main {
     public static void main(String[] args) {
-        System.out.println("Hello,Gaza lazuardi");
-        System.out.println("Hello,niko las las las");
+        playersave ps = new playersave();
+        ps.save();
+
+        window w = new window();
+        w.createWindow();
     }
 }
