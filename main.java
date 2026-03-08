@@ -5,7 +5,7 @@ public class main {
         
         //Membuat window atau frame untuk game
         JFrame window = new JFrame();
-        // =konfigurasi window
+        // konfigurasi window
         window.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE); //Agar ketika di close programnya juga berhenti
         window.setResizable(true); //Agar ukuran window bisa diubah-ubah
         window.setTitle("Gani's Town"); //Judul game

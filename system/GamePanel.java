@@ -41,18 +41,23 @@ public class GamePanel extends JPanel implements Runnable{
 		double delta = 0;
 		long lastTime = System.nanoTime();
 		long currentTime;
-
+		
+		// Game loop utama
 		while(gameThread != null){
-
+			// Menghitung waktu yang sejak frame terakhir
 			currentTime = System.nanoTime();
 
+			// Menambahkan waktu yang telah berlalu ke delta
 			delta += (currentTime - lastTime) / drawInterval;
 			lastTime = currentTime;
 
 			if(delta >= 1){
 
-				update();
-				repaint();
+				update(); // Memanggil method update untuk logika game
+
+				// baru memanggil repaint untuk render/ngegambar grafik di gamePanel
+				// repaint() itu fungsi paintComponent yang ada di bawah
+				repaint(); // agak anomali emang, tapi ya gitu lah
 
 				delta--;
 			}
@@ -60,9 +65,12 @@ public class GamePanel extends JPanel implements Runnable{
 	}
 
 	public void update() {
-		// Update logika game di sini
+		// buat bikin logika update game di sini, misalnya untuk menggerakkan karakter
 	}
 
+
+	// Method paintComponent / repaint() untuk ngegambar grafik di gamePanel
+	// intinya buat munculin gambar di layar. kyk karakter/background
 	@Override
 	public void paintComponent(java.awt.Graphics g) {
 		super.paintComponent(g);
