@@ -6,7 +6,7 @@ pembuat :
 - [Gaza Lazuardi C](https://www.github.com/gazach)
 - [M Nikolas](https://www.github.com/ZeNikolaser)
 
-### Struktur file
+### Struktur Folder
 
 `main.java` --> kode utama untuk run projek
 
@@ -18,21 +18,21 @@ pembuat :
 
 ### Git Basic Command
 
-```http
+```
   git pull
 ```
 Untuk dapetin kode paling update.
 
-```http
+```
   git add .
 ```
 Nambah semua file sebelum update kode
 
-```http
+```
 git commit -m "pesan"
 ```
 Ngasih pesan dari kode apa yang di update
-```http
+```
 git push -u
 ```
 upload kode
