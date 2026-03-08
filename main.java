@@ -1,6 +1,19 @@
+package main;
+import javax.swing.JFrame;
 public class main {
     public static void main(String[] args) {
-        System.out.println("Hello,Gaza lazuardi");
-        System.out.println("Hello,niko las las las");
+        
+        JFrame window = new JFrame();
+        window.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
+        window.setResizable(false);
+        window.setTitle("Gani's Town");
+
+        GamePanel gamePanel = new GamePanel();
+        window.add(gamePanel);
+
+        window.pack();
+
+        window.setLocationRelativeTo(null);
+        window.setVisible(true);
     }
 }
