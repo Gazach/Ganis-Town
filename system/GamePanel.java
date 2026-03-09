@@ -3,6 +3,7 @@ import java.awt.Color;
 import java.awt.Dimension;
 import javax.swing.JPanel;
 
+
 import java.awt.Graphics;
 import java.awt.Graphics2D;
 
@@ -18,14 +19,19 @@ public class GamePanel extends JPanel implements Runnable{
 	final int maxScreenRow = 12;
 	final int besarLayar = tileSize * maxScreenCol; //Jadi besarnya 768
 	final int tinggiLayar = tileSize * maxScreenRow; //Tingginya 576
-
+	KeyHandler keyH = new KeyHandler();
 	Thread gameThread;
-
+	//posisi awal spawn tersebut
+	int playerX = 100;
+	int playerY = 100;
+	int playerSpeed = 4;
 	public GamePanel(){
 
 		this.setPreferredSize(new Dimension(besarLayar, tinggiLayar));
 		this.setBackground(Color.white);
 		this.setDoubleBuffered(true);
+		this.addKeyListener(keyH);
+		this.setFocusable(true);
 	}
 	public void startGameThread(){
 
@@ -41,6 +47,8 @@ public class GamePanel extends JPanel implements Runnable{
 		double delta = 0;
 		long lastTime = System.nanoTime();
 		long currentTime;
+		long timer = 0;
+		int drawCount = 0;
 		
 		// Game loop utama
 		while(gameThread != null){
@@ -49,6 +57,7 @@ public class GamePanel extends JPanel implements Runnable{
 
 			// Menambahkan waktu yang telah berlalu ke delta
 			delta += (currentTime - lastTime) / drawInterval;
+			timer += (currentTime - lastTime);
 			lastTime = currentTime;
 
 			if(delta >= 1){
@@ -60,12 +69,34 @@ public class GamePanel extends JPanel implements Runnable{
 				repaint(); // agak anomali emang, tapi ya gitu lah
 
 				delta--;
+
+				drawCount++;
+			}
+			if (timer >= 1000000000){
+				System.out.println("FPS:" + drawCount);
+				drawCount = 0;
+				timer = 0;
 			}
 		}
 	}
 
 	public void update() {
 		// buat bikin logika update game di sini, misalnya untuk menggerakkan karakter
+		if(keyH.upPressed == true){
+			playerY -= playerSpeed; //di java kalo Y nurun(ke negatif) Y valuenya nambah
+									//jadinya karakter ke atas
+		}
+		else if(keyH.downPressed == true) {
+			playerY += playerSpeed;
+		}
+		else if(keyH.leftPressed == true){//kalo ke kanan jadinya nambah kalo X
+			playerX -= playerSpeed;
+		}
+		else if(keyH.rightPressed == true) {
+			playerX += playerSpeed;
+		}
+		
+		
 	}
 
 
@@ -79,7 +110,7 @@ public class GamePanel extends JPanel implements Runnable{
 		// Contoh menggambar kotak biru di layar
 		g2.setColor(Color.blue);
 
-		g2.fillRect(0, 0, 100, 100);
+		g2.fillRect(playerX, playerY, 100, 100);
 
 		g2.dispose();
 	}

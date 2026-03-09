@@ -1,5 +1,5 @@
+package system;
 import javax.swing.JFrame;
-import system.GamePanel;
 public class main {
     public static void main(String[] args) {
         
