@@ -3,7 +3,7 @@ import java.awt.Color;
 import java.awt.Dimension;
 import javax.swing.JPanel;
 
-
+import system.entity.Player;
 import java.awt.Graphics;
 import java.awt.Graphics2D;
 
@@ -13,7 +13,7 @@ public class GamePanel extends JPanel implements Runnable{
 	//Untuk per tile 
 	final int originalTileSize = 16; //JADI INI 16X16
 	final int scale = 3;//INI SCALE NYA JADI 16X3 ITU KAN 48 JADI 48 PIXEL 
-	final int tileSize = originalTileSize * scale; //Perhitungan untuk yang atas
+	public final int tileSize = originalTileSize * scale; //Perhitungan untuk yang atas
 	//Untuk besar layarnya
 	final int maxScreenCol = 16;
 	final int maxScreenRow = 12;
@@ -21,6 +21,7 @@ public class GamePanel extends JPanel implements Runnable{
 	final int tinggiLayar = tileSize * maxScreenRow; //Tingginya 576
 	KeyHandler keyH = new KeyHandler();
 	Thread gameThread;
+	Player player = new Player(this,keyH);
 	//posisi awal spawn tersebut
 	int playerX = 100;
 	int playerY = 100;
@@ -81,21 +82,8 @@ public class GamePanel extends JPanel implements Runnable{
 	}
 
 	public void update() {
-		// buat bikin logika update game di sini, misalnya untuk menggerakkan karakter
-		if(keyH.upPressed == true){
-			playerY -= playerSpeed; //di java kalo Y nurun(ke negatif) Y valuenya nambah
-									//jadinya karakter ke atas
-		}
-		else if(keyH.downPressed == true) {
-			playerY += playerSpeed;
-		}
-		else if(keyH.leftPressed == true){//kalo ke kanan jadinya nambah kalo X
-			playerX -= playerSpeed;
-		}
-		else if(keyH.rightPressed == true) {
-			playerX += playerSpeed;
-		}
-		
+
+		player.update();
 		
 	}
 
@@ -108,10 +96,7 @@ public class GamePanel extends JPanel implements Runnable{
 		// Render grafis game di sini
 		Graphics2D g2 = (Graphics2D) g;
 		// Contoh menggambar kotak biru di layar
-		g2.setColor(Color.blue);
-
-		g2.fillRect(playerX, playerY, 100, 100);
-
+		player.draw(g2);
 		g2.dispose();
 	}
 }
