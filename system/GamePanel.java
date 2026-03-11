@@ -3,6 +3,7 @@ import java.awt.Color;
 import java.awt.Dimension;
 import javax.swing.JPanel;
 
+import system.entity.Player;
 import java.awt.Graphics;
 import java.awt.Graphics2D;
 
@@ -15,7 +16,7 @@ public class GamePanel extends JPanel implements Runnable{
 	//Untuk per tile 
 	final int originalTileSize = 16; //JADI INI 16X16
 	final int scale = 3;//INI SCALE NYA JADI 16X3 ITU KAN 48 JADI 48 PIXEL 
-	final int tileSize = originalTileSize * scale; //Perhitungan untuk yang atas
+	public final int tileSize = originalTileSize * scale; //Perhitungan untuk yang atas
 	//Untuk besar layarnya
 	final int maxScreenCol = 16;
 	final int maxScreenRow = 12;
@@ -29,6 +30,7 @@ public class GamePanel extends JPanel implements Runnable{
 	Gameplay gameplay = new Gameplay(keyH);
 
 	Thread gameThread;
+	Player player = new Player(this,keyH);
 	//posisi awal spawn tersebut
 
 	public GamePanel(){
@@ -89,10 +91,16 @@ public class GamePanel extends JPanel implements Runnable{
 	}
 
 	public void update() {
+<<<<<<< HEAD
 		// buat bikin logika update game di sini, misalnya untuk menggerakkan karakter
 		if (gsm.isPlaying()) {
 			gameplay.updateGameplay();
 		}
+=======
+
+		player.update();
+		
+>>>>>>> c854513233239fa744fe1e2e0f937912b4cb5eb9
 	}
 
 
@@ -103,11 +111,17 @@ public class GamePanel extends JPanel implements Runnable{
 		// Render grafis game di sini
 		super.paintComponent(g);
 		Graphics2D g2 = (Graphics2D) g;
+<<<<<<< HEAD
 
 		// jika state game saat ini adalah PLAY_STATE, maka gambar gameplay
 		if (gsm.isPlaying()) {
 			gameplay.drawGameplay(g2);
 		}
+=======
+		// Contoh menggambar kotak biru di layar
+		player.draw(g2);
+		g2.dispose();
+>>>>>>> c854513233239fa744fe1e2e0f937912b4cb5eb9
 	}
 }
 
