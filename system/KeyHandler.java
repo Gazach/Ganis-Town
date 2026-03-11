@@ -4,8 +4,10 @@ import java.awt.event.KeyEvent; //untuk mengetahui tombol apa yang dipencet
 import java.awt.event.KeyListener; //Untuk mengambil input keyboard
 
 public class KeyHandler implements KeyListener{
+    // untuk mengetahui tombol apa yang dipencet (wasd)
     public boolean upPressed, downPressed, leftPressed, rightPressed;
 
+    public boolean enterPressed; // untuk tombol enter
 
     @Override
     public void keyTyped(KeyEvent e){//belom ini
@@ -17,6 +19,7 @@ public class KeyHandler implements KeyListener{
 
         int code = e.getKeyCode();
 
+        // WASD untuk gerak
         if(code == KeyEvent.VK_W){
             upPressed = true;
         }
@@ -28,6 +31,11 @@ public class KeyHandler implements KeyListener{
         }
         if(code == KeyEvent.VK_D){
             rightPressed = true;
+        }
+
+        // ESC untuk pergi ke gameplay
+        if(code == KeyEvent.VK_ENTER){
+            enterPressed = true;
         }
     }
 
@@ -46,6 +54,9 @@ public class KeyHandler implements KeyListener{
             }
             if(code == KeyEvent.VK_D){
                 rightPressed = false;
+            }
+            if(code == KeyEvent.VK_ENTER){
+                enterPressed = false;
             }
         }
 

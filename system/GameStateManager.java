@@ -38,7 +38,7 @@ public class GameStateManager {
     }
 
     // list gamestate :
-    public boolean isMenu() {
+    public boolean isMainMenu() {
         return currentState == MENU_STATE;
     }
 

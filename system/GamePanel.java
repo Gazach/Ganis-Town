@@ -7,8 +7,9 @@ import system.entity.Player;
 import java.awt.Graphics;
 import java.awt.Graphics2D;
 
-
+// gamestate
 import game.gamestate.Gameplay;
+import game.gamestate.MainMenu;
 
 public class GamePanel extends JPanel implements Runnable{
 
@@ -27,7 +28,9 @@ public class GamePanel extends JPanel implements Runnable{
 	KeyHandler keyH = new KeyHandler();
 	GameStateManager gsm = new GameStateManager(); // buat ngehandle state game
 
+	// buat ngehandle gamestate
 	Gameplay gameplay = new Gameplay(keyH);
+	MainMenu mainMenu = new MainMenu(keyH, gsm);
 
 	Thread gameThread;
 	//posisi awal spawn tersebut
@@ -39,8 +42,9 @@ public class GamePanel extends JPanel implements Runnable{
 		this.setDoubleBuffered(true);
 		this.addKeyListener(keyH);
 		this.setFocusable(true);
-		
-		gsm.setState(GameStateManager.PLAY_STATE);
+		this.requestFocusInWindow();
+
+		gsm.setState(GameStateManager.MENU_STATE);
 	}
 	public void startGameThread(){
 
@@ -94,6 +98,9 @@ public class GamePanel extends JPanel implements Runnable{
 		if (gsm.isPlaying()) {
 			gameplay.updateGameplay();
 		}
+		if (gsm.isMainMenu()) {
+			mainMenu.updateMenu();
+		}
 
 	}
 
@@ -110,7 +117,9 @@ public class GamePanel extends JPanel implements Runnable{
 		if (gsm.isPlaying()) {
 			gameplay.drawGameplay(g2);
 		}
-
+		if (gsm.isMainMenu()) {
+			mainMenu.drawMenu(g2);
+		}
 	}
 }
 
