@@ -6,6 +6,9 @@ import javax.swing.JPanel;
 import java.awt.Graphics;
 import java.awt.Graphics2D;
 
+
+import game.gamestate.Gameplay;
+
 public class GamePanel extends JPanel implements Runnable{
 
 	//LAYAR AWAL
@@ -18,12 +21,16 @@ public class GamePanel extends JPanel implements Runnable{
 	final int maxScreenRow = 12;
 	final int besarLayar = tileSize * maxScreenCol; //Jadi besarnya 768
 	final int tinggiLayar = tileSize * maxScreenRow; //Tingginya 576
+
+	//
 	KeyHandler keyH = new KeyHandler();
+	GameStateManager gsm = new GameStateManager(); // buat ngehandle state game
+
+	Gameplay gameplay = new Gameplay(keyH);
+
 	Thread gameThread;
 	//posisi awal spawn tersebut
-	int playerX = 100;
-	int playerY = 100;
-	int playerSpeed = 4;
+
 	public GamePanel(){
 
 		this.setPreferredSize(new Dimension(besarLayar, tinggiLayar));
@@ -31,6 +38,8 @@ public class GamePanel extends JPanel implements Runnable{
 		this.setDoubleBuffered(true);
 		this.addKeyListener(keyH);
 		this.setFocusable(true);
+		
+		gsm.setState(GameStateManager.PLAY_STATE);
 	}
 	public void startGameThread(){
 
@@ -81,21 +90,9 @@ public class GamePanel extends JPanel implements Runnable{
 
 	public void update() {
 		// buat bikin logika update game di sini, misalnya untuk menggerakkan karakter
-		if(keyH.upPressed == true){
-			playerY -= playerSpeed; //di java kalo Y nurun(ke negatif) Y valuenya nambah
-									//jadinya karakter ke atas
+		if (gsm.isPlaying()) {
+			gameplay.updateGameplay();
 		}
-		else if(keyH.downPressed == true) {
-			playerY += playerSpeed;
-		}
-		else if(keyH.leftPressed == true){//kalo ke kanan jadinya nambah kalo X
-			playerX -= playerSpeed;
-		}
-		else if(keyH.rightPressed == true) {
-			playerX += playerSpeed;
-		}
-		
-		
 	}
 
 
@@ -103,15 +100,14 @@ public class GamePanel extends JPanel implements Runnable{
 	// intinya buat munculin gambar di layar. kyk karakter/background
 	@Override
 	public void paintComponent(java.awt.Graphics g) {
-		super.paintComponent(g);
 		// Render grafis game di sini
+		super.paintComponent(g);
 		Graphics2D g2 = (Graphics2D) g;
-		// Contoh menggambar kotak biru di layar
-		g2.setColor(Color.blue);
 
-		g2.fillRect(playerX, playerY, 100, 100);
-
-		g2.dispose();
+		// jika state game saat ini adalah PLAY_STATE, maka gambar gameplay
+		if (gsm.isPlaying()) {
+			gameplay.drawGameplay(g2);
+		}
 	}
 }
 
