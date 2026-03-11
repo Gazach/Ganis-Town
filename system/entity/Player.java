@@ -8,6 +8,8 @@ import javax.imageio.ImageIO;
 import system.KeyHandler;
 
 import java.awt.Color;
+
+import system.Entity;
 import system.GamePanel;
 import java.awt.image.BufferedImage;
 
