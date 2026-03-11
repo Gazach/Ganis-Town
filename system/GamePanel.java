@@ -30,7 +30,6 @@ public class GamePanel extends JPanel implements Runnable{
 	Gameplay gameplay = new Gameplay(keyH);
 
 	Thread gameThread;
-	Player player = new Player(this,keyH);
 	//posisi awal spawn tersebut
 
 	public GamePanel(){
@@ -91,16 +90,11 @@ public class GamePanel extends JPanel implements Runnable{
 	}
 
 	public void update() {
-<<<<<<< HEAD
 		// buat bikin logika update game di sini, misalnya untuk menggerakkan karakter
 		if (gsm.isPlaying()) {
 			gameplay.updateGameplay();
 		}
-=======
 
-		player.update();
-		
->>>>>>> c854513233239fa744fe1e2e0f937912b4cb5eb9
 	}
 
 
@@ -111,17 +105,12 @@ public class GamePanel extends JPanel implements Runnable{
 		// Render grafis game di sini
 		super.paintComponent(g);
 		Graphics2D g2 = (Graphics2D) g;
-<<<<<<< HEAD
 
 		// jika state game saat ini adalah PLAY_STATE, maka gambar gameplay
 		if (gsm.isPlaying()) {
 			gameplay.drawGameplay(g2);
 		}
-=======
-		// Contoh menggambar kotak biru di layar
-		player.draw(g2);
-		g2.dispose();
->>>>>>> c854513233239fa744fe1e2e0f937912b4cb5eb9
+
 	}
 }
 

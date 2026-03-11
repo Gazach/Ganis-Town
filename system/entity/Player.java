@@ -1,37 +1,36 @@
 package system.entity;
 
+import java.awt.Color;
 import java.awt.Graphics2D;
 import java.io.IOException;
-
 import javax.imageio.ImageIO;
-
-import system.KeyHandler;
-
-import java.awt.Color;
-
-import system.Entity;
-import system.GamePanel;
 import java.awt.image.BufferedImage;
 
+import game.gamestate.Gameplay;
+import system.Entity;
+import system.KeyHandler;
+
+
 public class Player extends Entity {
-    GamePanel gp;
+
+    Gameplay gp;
     KeyHandler keyH;
-    
-    
-    public Player(GamePanel gp, KeyHandler keyH) {
+
+    public Player(Gameplay gp, KeyHandler keyH) {
         this.gp = gp;
         this.keyH = keyH;
 
         setDefaultValues();
         getPlayerImage();
-
     }
+
     public void setDefaultValues(){
         x = 100;
         y = 100;
         speed = 4;
         direction = "down";
     }
+
     public void getPlayerImage(){ //untuk ngambil gambar yang ada di folder player
         try{
             up1 = ImageIO.read(getClass().getResourceAsStream("/asset/Player/Up.png"));
@@ -42,87 +41,75 @@ public class Player extends Entity {
             left2 = ImageIO.read(getClass().getResourceAsStream("/asset/Player/Left1.png"));
             right1 = ImageIO.read(getClass().getResourceAsStream("/asset/Player/Right.png"));
             right2 = ImageIO.read(getClass().getResourceAsStream("/asset/Player/Right1.png"));
-
-
-        }catch(IOException e){
+        }catch(IOException | NullPointerException e){
             e.printStackTrace();
+            System.out.println("Failed to load player images. Check resource paths!");
         }
     }
-        
-    
-    public void update(){// buat bikin logika update game di sini, misalnya untuk menggerakkan karakter
-        if(keyH.upPressed == true || keyH.downPressed == true || 
-            keyH.leftPressed == true || keyH.rightPressed == true){//biar karakter gak bergerak kalau tidak disentuh
-                
-		if(keyH.upPressed == true){
-            direction = "up";
-			y -= speed; //di java kalo Y nurun(ke negatif) Y valuenya nambah
-									//jadinya karakter ke atas
-		}
-		else if(keyH.downPressed == true) {
-            direction = "down";
-			y += speed;
-		}
-		else if(keyH.leftPressed == true){//kalo ke kanan jadinya nambah kalo X
-            direction = "left";
-			x -= speed;
-		}
-		else if(keyH.rightPressed == true) {
-            direction = "right";
-			x += speed;
-		}
-        spriteCounter++; //Perubahan sprite setiap 12 frames
-        if (spriteCounter > 12){
-            if(spriteNum == 1){
-                spriteNum = 2;
+
+    public void update() {
+        boolean moving = false;
+        // untuk menghitung perubahan posisi berdasarkan input
+        int dx = 0;
+        int dy = 0;
+
+        if(keyH.upPressed) { // ke atas
+            dy -= speed;
+            moving = true;
+        }
+        if(keyH.downPressed) { // ke bawah
+            dy += speed;
+            moving = true;
+        }
+        if(keyH.leftPressed) { // ke kiri
+            dx -= speed;
+            moving = true;
+        }
+        if(keyH.rightPressed) { // ke kanan
+            dx += speed;
+            moving = true;
+        }
+
+        // Normalisasi kecepatan diagonal agar gak lebih cepat saat bergerak diagonal
+        if(dx != 0 && dy != 0){
+            dx = (int)(dx / Math.sqrt(1.5));
+            dy = (int)(dy / Math.sqrt(1.5));
+        }
+
+        // Update posisi pemain
+        x += dx;
+        y += dy;
+
+        // Update arah berdasarkan input
+        if(dx != 0) direction = (dx > 0) ? "right" : "left";
+        else if(dy != 0) direction = (dy > 0) ? "down" : "up";
+
+        // animasi sprite hanya jika pemain bergerak
+        if(moving){
+            spriteCounter++;
+            if(spriteCounter > 12){
+                spriteNum = (spriteNum == 1) ? 2 : 1;
+                spriteCounter = 0;
             }
-            else if (spriteNum == 2){
-                spriteNum = 1;
-            }
-            spriteCounter = 0;
-        }    
+        }
     }
 
-    }
     public void draw(Graphics2D g2){
         BufferedImage image = null;
 
         switch(direction){
-        case "up":
-            if(spriteNum == 1){
-                image = up1;
-            }
-            if (spriteNum ==2){
-                image = up2;
-            }
-            break;
-        case "down":
-            if(spriteNum == 1){
-                image = down1;
-            }
-            if(spriteNum == 2){
-                image = down2;
-            }
-            break;
-        case "left":
-            if(spriteNum == 1){
-                image = left1;
-            }
-            if (spriteNum == 2){
-                image = left2;
-            }
-            break;
-        case "right":
-            if(spriteNum == 1){
-                image = right1;
-            }
-            if(spriteNum == 2){
-                image = right2;
-            }
-            break;
-
-
+            case "up":    image = (spriteNum==1)? up1 : up2; break;
+            case "down":  image = (spriteNum==1)? down1 : down2; break;
+            case "left":  image = (spriteNum==1)? left1 : left2; break;
+            case "right": image = (spriteNum==1)? right1 : right2; break;
         }
-        g2.drawImage(image, x, y, gp.tileSize,gp.tileSize, null);
+
+        if(image != null){
+            g2.drawImage(image, x, y, gp.tileSize, gp.tileSize, null);
+        } else {
+            // fallback rectangle if image fails
+            g2.setColor(Color.RED);
+            g2.fillRect(x, y, gp.tileSize, gp.tileSize);
+        }
     }
 }
