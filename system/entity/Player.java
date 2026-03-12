@@ -9,11 +9,14 @@ import java.awt.image.BufferedImage;
 import game.gamestate.Gameplay;
 import system.Entity;
 import system.KeyHandler;
+import system.sprite2D;
+
 
 
 public class Player extends Entity {
 
     Gameplay gp;
+    sprite2D sprite = new sprite2D();
     KeyHandler keyH;
 
     public Player(Gameplay gp, KeyHandler keyH) {
@@ -25,7 +28,7 @@ public class Player extends Entity {
     }
 
     public void setDefaultValues(){
-        x = 100;
+        x = 50;
         y = 100;
         speed = 4;
         direction = "down";
@@ -87,7 +90,7 @@ public class Player extends Entity {
         // animasi sprite hanya jika pemain bergerak
         if(moving){
             spriteCounter++;
-            if(spriteCounter > 12){
+            if(spriteCounter > 6){
                 spriteNum = (spriteNum == 1) ? 2 : 1;
                 spriteCounter = 0;
             }
@@ -104,12 +107,8 @@ public class Player extends Entity {
             case "right": image = (spriteNum==1)? right1 : right2; break;
         }
 
-        if(image != null){
-            g2.drawImage(image, x, y, gp.tileSize, gp.tileSize, null);
-        } else {
-            // fallback rectangle if image fails
-            g2.setColor(Color.RED);
-            g2.fillRect(x, y, gp.tileSize, gp.tileSize);
-        }
+        //g2.drawImage(image, x, y, gp.tileSize, gp.tileSize, null);
+        sprite.drawSprite(g2, image, x, y, gp.tileSize, gp.tileSize); // sprite player
+
     }
 }

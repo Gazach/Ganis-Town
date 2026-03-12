@@ -3,8 +3,6 @@ import java.awt.Color;
 import java.awt.Dimension;
 import javax.swing.JPanel;
 
-import system.entity.Player;
-import java.awt.Graphics;
 import java.awt.Graphics2D;
 
 // gamestate
@@ -103,7 +101,6 @@ public class GamePanel extends JPanel implements Runnable{
 		}
 
 	}
-
 
 	// Method paintComponent / repaint() untuk ngegambar grafik di gamePanel
 	// intinya buat munculin gambar di layar. kyk karakter/background
