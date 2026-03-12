@@ -4,6 +4,7 @@ import java.awt.Color;
 import java.awt.Graphics2D;
 import system.KeyHandler;
 import system.GameStateManager;
+import system.GamePanel;
 
 import system.sprite2D;
 import java.io.IOException;
@@ -14,12 +15,14 @@ public class MainMenu {
     private KeyHandler keyH;
     sprite2D sprite = new sprite2D();
     private GameStateManager gsm;
+    private GamePanel gp;
 
     private BufferedImage logo; // placeholder untuk gambar
 
-    public MainMenu(KeyHandler keyH, GameStateManager gsm) {
+    public MainMenu(KeyHandler keyH, GameStateManager gsm, GamePanel gp) {
         this.keyH = keyH;
         this.gsm = gsm; // Initialize GameStateManager
+        this.gp = gp; // Initialize GamePanel
 
         getImage(); // load gambar
     }
@@ -44,7 +47,7 @@ public class MainMenu {
 
     public void drawMenu(Graphics2D g2) {
         g2.setColor(Color.gray);
-        g2.fillRect(0, 0, 800, 600); // background main menu
+        g2.fillRect(0, 0, gp.besarLayar, gp.tinggiLayar); // background main menu
 
         sprite.drawSprite(g2, logo, 80, 0, 600, 300); // placeholder for menu title
 

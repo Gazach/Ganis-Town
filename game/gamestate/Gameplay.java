@@ -3,7 +3,8 @@ package game.gamestate;
 import java.awt.Color;
 import java.awt.Graphics2D;
 import system.KeyHandler;
-import system.entity.Player;
+import game.entity.Player;
+import system.GamePanel;
 
 public class Gameplay {
 
@@ -14,11 +15,13 @@ public class Gameplay {
     int playerX = 100;
     int playerY = 100;
     int playerSpeed = 4;
+    private GamePanel gp;
 
     // Constructor: initialize KeyHandler first, then player
-    public Gameplay(KeyHandler keyH){
+    public Gameplay(KeyHandler keyH, GamePanel gp) {
         this.keyH = keyH;
-        this.player = new Player(this, keyH); // now keyH is not null
+        this.gp = gp; 
+        this.player = new Player(this, keyH); 
     }
 
     public void updateGameplay(){
@@ -27,6 +30,9 @@ public class Gameplay {
 
     public void drawGameplay(Graphics2D g2){
         // Debug background for testing
+        g2.setColor(Color.green); // light blue background
+        g2.fillRect(0, 0, gp.besarLayar, gp.tinggiLayar); // background main menu
+        
         g2.setColor(Color.blue);
         g2.fillRect(playerX, playerY, tileSize, tileSize);
 

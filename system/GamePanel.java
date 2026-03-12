@@ -1,9 +1,12 @@
 package system;
 import java.awt.Color;
 import java.awt.Dimension;
+import java.awt.Graphics;
+
 import javax.swing.JPanel;
 
 import java.awt.Graphics2D;
+import java.awt.image.BufferedImage;
 
 // gamestate
 import game.gamestate.Gameplay;
@@ -17,18 +20,18 @@ public class GamePanel extends JPanel implements Runnable{
 	final int scale = 3;//INI SCALE NYA JADI 16X3 ITU KAN 48 JADI 48 PIXEL 
 	public final int tileSize = originalTileSize * scale; //Perhitungan untuk yang atas
 	//Untuk besar layarnya
-	final int maxScreenCol = 16;
+	final int maxScreenCol = 18;
 	final int maxScreenRow = 12;
-	final int besarLayar = tileSize * maxScreenCol; //Jadi besarnya 768
-	final int tinggiLayar = tileSize * maxScreenRow; //Tingginya 576
+	public final int besarLayar = tileSize * maxScreenCol; //Jadi besarnya 864
+	public final int tinggiLayar = tileSize * maxScreenRow; //Tingginya 576
 
 	//
 	KeyHandler keyH = new KeyHandler();
 	GameStateManager gsm = new GameStateManager(); // buat ngehandle state game
 
 	// buat ngehandle gamestate
-	Gameplay gameplay = new Gameplay(keyH);
-	MainMenu mainMenu = new MainMenu(keyH, gsm);
+	Gameplay gameplay = new Gameplay(keyH, this); 
+	MainMenu mainMenu = new MainMenu(keyH, gsm, this); 
 
 	Thread gameThread;
 	//posisi awal spawn tersebut
@@ -36,7 +39,7 @@ public class GamePanel extends JPanel implements Runnable{
 	public GamePanel(){
 
 		this.setPreferredSize(new Dimension(besarLayar, tinggiLayar));
-		this.setBackground(Color.white);
+		this.setBackground(Color.black);
 		this.setDoubleBuffered(true);
 		this.addKeyListener(keyH);
 		this.setFocusable(true);
@@ -104,19 +107,54 @@ public class GamePanel extends JPanel implements Runnable{
 
 	// Method paintComponent / repaint() untuk ngegambar grafik di gamePanel
 	// intinya buat munculin gambar di layar. kyk karakter/background
+
 	@Override
-	public void paintComponent(java.awt.Graphics g) {
-		// Render grafis game di sini
+	public void paintComponent(Graphics g) {
+
+		// ===================================
+		// JANGAN DI SENTUH SELAIN KALO MAU NAMBAH STATE BARU, KALAU MAU NAMBAH STATE BARU TINGGAL TAMBAHIN ELSE IF DI BAWAH INI AJA
+		// ===================================
 		super.paintComponent(g);
 		Graphics2D g2 = (Graphics2D) g;
 
-		// jika state game saat ini adalah PLAY_STATE, maka gambar gameplay
+		// Scaling untuk menyesuaikan ukuran layar, biar gak pecah gambarnya
+		int panelWidth = getWidth();
+		int panelHeight = getHeight();
+
+		double scaleX = (double) panelWidth / besarLayar;
+		double scaleY = (double) panelHeight / tinggiLayar;
+		double scale = Math.min(scaleX, scaleY);
+
+		int drawWidth = (int)(besarLayar * scale);
+		int drawHeight = (int)(tinggiLayar * scale);
+
+		int xOffset = (panelWidth - drawWidth) / 2;
+		int yOffset = (panelHeight - drawHeight) / 2;
+
+		// background hitam biar gak aneh pas di scale, nanti gambar game nya yang di scale bukan panelnya, jadi gak pecah
+		g2.setColor(Color.black);
+		g2.fillRect(0, 0, panelWidth, panelHeight);
+
+		// buat buffer gambar untuk render game dengan resolusi asli, nanti di scale saat menggambar ke panel
+		BufferedImage gameBuffer = new BufferedImage(besarLayar, tinggiLayar, BufferedImage.TYPE_INT_ARGB);
+		Graphics2D bg = gameBuffer.createGraphics();
+
+		// render game berdasarkan state saat ini, misalnya menu atau gameplay
+		// kalo mau di ubah yang ini aja. jadi kalo mau nambah state baru tinggal nambahin else if nya aja
+		// biar gak pusing anjg
 		if (gsm.isPlaying()) {
-			gameplay.drawGameplay(g2);
+			gameplay.drawGameplay(bg);
+		} else if (gsm.isMainMenu()) {
+			mainMenu.drawMenu(bg);
 		}
-		if (gsm.isMainMenu()) {
-			mainMenu.drawMenu(g2);
-		}
-	}
+
+		// dispose graphics untuk gameBuffer setelah selesai menggambar
+		bg.dispose();
+
+		// Draw the buffer scaled to the panel
+		g2.drawImage(gameBuffer, xOffset, yOffset, drawWidth, drawHeight, null);
+
+		g2.dispose();
+}
 }
 
