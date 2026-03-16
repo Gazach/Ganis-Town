@@ -8,14 +8,14 @@ import java.awt.image.BufferedImage;
 import game.gamestate.Gameplay;
 import system.Entity;
 import system.KeyHandler;
-import system.sprite2D;
+import system.Sprite2D;
 
 
 
 public class Player extends Entity {
 
     Gameplay gp;
-    sprite2D sprite = new sprite2D();
+    Sprite2D sprite = new Sprite2D();
     KeyHandler keyH;
 
     public Player(Gameplay gp, KeyHandler keyH) {

@@ -121,12 +121,12 @@ public class GamePanel extends JPanel implements Runnable{
 		int panelWidth = getWidth();
 		int panelHeight = getHeight();
 
-		double scaleX = (double) panelWidth / besarLayar;
-		double scaleY = (double) panelHeight / tinggiLayar;
-		double scale = Math.min(scaleX, scaleY);
+		double scaleX = 	(double) panelWidth / besarLayar;
+		double scaleY = 	(double) panelHeight / tinggiLayar;
+		double scale = 		Math.min(scaleX, scaleY);
 
-		int drawWidth = (int)(besarLayar * scale);
-		int drawHeight = (int)(tinggiLayar * scale);
+		int drawWidth = 	(int)(besarLayar * scale);
+		int drawHeight = 	(int)(tinggiLayar * scale);
 
 		int xOffset = (panelWidth - drawWidth) / 2;
 		int yOffset = (panelHeight - drawHeight) / 2;
@@ -142,6 +142,7 @@ public class GamePanel extends JPanel implements Runnable{
 		// render game berdasarkan state saat ini, misalnya menu atau gameplay
 		// kalo mau di ubah yang ini aja. jadi kalo mau nambah state baru tinggal nambahin else if nya aja
 		// biar gak pusing anjg
+
 		if (gsm.isPlaying()) {
 			gameplay.drawGameplay(bg);
 		} else if (gsm.isMainMenu()) {
