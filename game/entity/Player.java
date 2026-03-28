@@ -18,17 +18,22 @@ public class Player extends Entity {
     Sprite2D sprite = new Sprite2D();
     KeyHandler keyH;
 
+    public final int screenX;
+    public final int screenY;
+
     public Player(Gameplay gp, KeyHandler keyH) {
         this.gp = gp;
         this.keyH = keyH;
+        screenX = gp.screenWidth/2 - (gp.tileSize/2);
+        screenY = gp.screenHeight/2 - (gp.tileSize/2);
 
         setDefaultValues();
         getPlayerImage();
     }
 
     public void setDefaultValues(){
-        x = 50;
-        y = 100;
+        worldX = gp.tileSize * 5;
+        worldY = gp.tileSize * 5;
         speed = 4;
         direction = "down";
     }
@@ -52,40 +57,38 @@ public class Player extends Entity {
     public void update() {
         boolean moving = false;
         // untuk menghitung perubahan posisi berdasarkan input
-        int dx = 0;
-        int dy = 0;
+    
 
         if(keyH.upPressed) { // ke atas
-            dy -= speed;
+            direction = "up";
+            worldY -= speed;
             moving = true;
         }
         if(keyH.downPressed) { // ke bawah
-            dy += speed;
+            direction = "down";
+            worldY += speed;
             moving = true;
         }
         if(keyH.leftPressed) { // ke kiri
-            dx -= speed;
+            direction = "left";
+            worldX -= speed;
             moving = true;
         }
         if(keyH.rightPressed) { // ke kanan
-            dx += speed;
+            direction = "right";
+            worldX += speed;
             moving = true;
         }
 
         // Normalisasi kecepatan diagonal agar gak lebih cepat saat bergerak diagonal
-        if(dx != 0 && dy != 0){
-            dx = (int)(dx / Math.sqrt(1.5));
-            dy = (int)(dy / Math.sqrt(1.5));
-        }
+        
+        
 
         // Update posisi pemain
-        x += dx;
-        y += dy;
+        
 
         // Update arah berdasarkan input
-        if(dx != 0) direction = (dx > 0) ? "right" : "left";
-        else if(dy != 0) direction = (dy > 0) ? "down" : "up";
-
+        
         // animasi sprite hanya jika pemain bergerak
         if(moving){
             spriteCounter++;
@@ -107,7 +110,7 @@ public class Player extends Entity {
         }
 
         //g2.drawImage(image, x, y, gp.tileSize, gp.tileSize, null);
-        sprite.drawSprite(g2, image, x, y, gp.tileSize, gp.tileSize); // sprite player
+        sprite.drawSprite(g2, image, screenX, screenY, gp.tileSize, gp.tileSize); // sprite player
 
     }
 }

@@ -8,9 +8,11 @@ import javax.swing.JPanel;
 import java.awt.Graphics2D;
 import java.awt.image.BufferedImage;
 
+import game.entity.Player;
 // gamestate
 import game.gamestate.Gameplay;
 import game.gamestate.MainMenu;
+import game.tile.TileManager;
 
 public class GamePanel extends JPanel implements Runnable{
 
@@ -20,19 +22,26 @@ public class GamePanel extends JPanel implements Runnable{
 	final int scale = 3;//INI SCALE NYA JADI 16X3 ITU KAN 48 JADI 48 PIXEL 
 	public final int tileSize = originalTileSize * scale; //Perhitungan untuk yang atas
 	//Untuk besar layarnya
-	final int maxScreenCol = 18;
-	final int maxScreenRow = 12;
+	public final int maxScreenCol = 18;
+	public final int maxScreenRow = 12;
 	public final int besarLayar = tileSize * maxScreenCol; //Jadi besarnya 864
 	public final int tinggiLayar = tileSize * maxScreenRow; //Tingginya 576
-
+	//WORLD SETTINGS
+	// ini itu untuk seberapa gede dunianya
+	public final int maxWorldCol = 50;
+	public final int maxWorldRow = 50;
+	public final int worldWidth = tileSize * maxWorldCol;
+	public final int worldHeight = tileSize * maxWorldRow;
 	//
+	public TileManager tileM = new TileManager(this);
 	KeyHandler keyH = new KeyHandler();
+	public Player player;
 	GameStateManager gsm = new GameStateManager(); // buat ngehandle state game
+	
 
 	// buat ngehandle gamestate
 	Gameplay gameplay = new Gameplay(keyH, this); 
 	MainMenu mainMenu = new MainMenu(keyH, gsm, this); 
-
 	Thread gameThread;
 	//posisi awal spawn tersebut
 
@@ -116,6 +125,7 @@ public class GamePanel extends JPanel implements Runnable{
 		// ===================================
 		super.paintComponent(g);
 		Graphics2D g2 = (Graphics2D) g;
+		
 
 		// Scaling untuk menyesuaikan ukuran layar, biar gak pecah gambarnya
 		int panelWidth = getWidth();

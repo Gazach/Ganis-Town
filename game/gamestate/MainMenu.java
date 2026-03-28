@@ -50,6 +50,7 @@ public class MainMenu {
             // Logic to switch to gameplay state
             System.out.println("Enter pressed! Switching to Gameplay...");
             gsm.setState(GameStateManager.PLAY_STATE);
+            
         }
     }
 
