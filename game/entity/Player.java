@@ -10,8 +10,6 @@ import system.Entity;
 import system.KeyHandler;
 import system.Sprite2D;
 
-
-
 public class Player extends Entity {
 
     Gameplay gp;

@@ -3,6 +3,8 @@ package game.tile;
 import java.awt.Graphics2D;
 import java.awt.image.BufferedImage;
 import java.io.BufferedReader;
+import java.io.File;
+import java.io.FileInputStream;
 import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.io.IOException;
@@ -29,18 +31,17 @@ public class TileManager {
         try{
             //ini untuk mengeluarkan tilenya kalo 0 itu grass, 1 itu wall, 2 itu water
             tile[0] = new Tile();
-            tile[0].image = ImageIO.read(getClass().getResourceAsStream("/asset/tiles/grass.png"));
+            tile[0].image = loadImage("/asset/tiles/grass.png");
             tile[1] = new Tile();
-            tile[1].image = ImageIO.read(getClass().getResourceAsStream("/asset/tiles/wall.png"));
+            tile[1].image = loadImage("/asset/tiles/wall.png");
             tile[2] = new Tile();
-            tile[2].image = ImageIO.read(getClass().getResourceAsStream("/asset/tiles/water.png"));
+            tile[2].image = loadImage("/asset/tiles/water.png");
             tile[3] = new Tile();
-            tile[3].image = ImageIO.read(getClass().getResourceAsStream("/asset/tiles/dirt.png"));
+            tile[3].image = loadImage("/asset/tiles/dirt.png");
             tile[4] = new Tile();
-            tile[4].image = ImageIO.read(getClass().getResourceAsStream("/asset/tiles/tree.png"));
+            tile[4].image = loadImage("/asset/tiles/tree.png");
             tile[5] = new Tile();
-            tile[5].image = ImageIO.read(getClass().getResourceAsStream("/asset/tiles/sand.png"));
-
+            tile[5].image = loadImage("/asset/tiles/sand.png");
 
 
 
@@ -48,10 +49,41 @@ public class TileManager {
             e.printStackTrace();
         }
     }
+    // Ini untuk bisa load file dari resource atau dari file system,
+    // jadi kalo misalnya file itu ada di dalam jar atau di luar jar tetap bisa kebaca
+    private BufferedImage loadImage(String path) throws IOException {
+        InputStream is = getClass().getResourceAsStream(path);// Coba load dari resource terlebih dahulu
+        if (is != null) { // Coba load dari resource, jika berhasil, langsung return gambarnya
+            return ImageIO.read(is);
+        }
+
+        File file = new File(path.startsWith("/") ? path.substring(1) : path); // Coba load dari file system
+        if (file.exists()) { // Jika file ada, load dan return gambarnya
+            return ImageIO.read(file);
+        }
+
+        throw new IOException("Unable to load image: " + path);
+    }
+    // Ini untuk bisa load file dari resource atau dari file system,
+    // jadi kalo misalnya file itu ada di dalam jar atau di luar jar tetap bisa kebaca
+    private InputStream openResourceStream(String path) throws IOException {
+        InputStream is = getClass().getResourceAsStream(path); 
+        if (is != null) { // kalo null berarti file itu ada di resource, jadi langsung return streamnya
+            return is;
+        }
+
+        File file = new File(path.startsWith("/") ? path.substring(1) : path);
+        if (file.exists()) { // kalo file itu ada di file system, jadi langsung return streamnya
+            return new FileInputStream(file);
+        }
+
+        throw new IOException("Unable to open resource: " + path);
+    }
+
     public void loadMap(String filePath){
         //ini untuk ngebuat map dari map01.txt tersebut 
         try{
-            InputStream is = getClass().getResourceAsStream(filePath);
+            InputStream is = openResourceStream(filePath);
             //BufferedReader dipake untuk ngebaca 0 1 2 nya
             BufferedReader br = new BufferedReader(new InputStreamReader(is));
             int col = 0;
@@ -80,11 +112,6 @@ public class TileManager {
             e.printStackTrace();
 
         }
-
-
-
-
-
 
     }
     public void draw(Graphics2D g2){
