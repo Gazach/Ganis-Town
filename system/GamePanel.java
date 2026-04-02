@@ -35,13 +35,14 @@ public class GamePanel extends JPanel implements Runnable{
 	//
 	public TileManager tileM = new TileManager(this);
 	KeyHandler keyH = new KeyHandler();
+	MouseHandler mouseH = new MouseHandler(this);
 	public Player player;
 	GameStateManager gsm = new GameStateManager(); // buat ngehandle state game
 	
 
 	// buat ngehandle gamestate
 	Gameplay gameplay = new Gameplay(keyH, this); 
-	MainMenu mainMenu = new MainMenu(keyH, gsm, this); 
+	MainMenu mainMenu = new MainMenu(keyH, mouseH, gsm, this); 
 	Thread gameThread;
 	//posisi awal spawn tersebut
 
@@ -51,6 +52,8 @@ public class GamePanel extends JPanel implements Runnable{
 		this.setBackground(Color.black);
 		this.setDoubleBuffered(true);
 		this.addKeyListener(keyH);
+		this.addMouseListener(mouseH);
+		this.addMouseMotionListener(mouseH);
 		this.setFocusable(true);
 		this.requestFocusInWindow();
 

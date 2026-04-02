@@ -1,6 +1,5 @@
 package game.gamestate;
 
-import java.awt.Color;
 import java.awt.Graphics2D;
 import system.KeyHandler;
 import game.entity.Player;
