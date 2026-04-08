@@ -9,6 +9,8 @@
 
 package system;
 
+import game.gamestate.Gameplay;
+
 public class GameStateManager {
 
     // Game States
@@ -21,6 +23,7 @@ public class GameStateManager {
     public static final int PAUSE_STATE =   2; // state untuk pause menu
 
     private int currentState;
+    private Gameplay gp; 
 
     public GameStateManager() {
         // secara default game akan muncul di menu saat pertama kali dijalankan
@@ -29,6 +32,12 @@ public class GameStateManager {
 
     public void setState(int state) {
         // method untuk mengganti state game sesuai dengan parameter yang diberikan
+        if (currentState == PLAY_STATE && state != PLAY_STATE) {
+            if (gp != null) {
+                gp.saveGame();
+                System.out.println("Game auto-saved.");
+            }
+        }
         currentState = state;
     }
 
@@ -48,6 +57,9 @@ public class GameStateManager {
 
     public boolean isPaused() {
         return currentState == PAUSE_STATE;
+    }
+    public void setGameplay(Gameplay gameplay) {
+        this.gp = gameplay;
     }
 
 }

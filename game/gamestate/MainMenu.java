@@ -16,6 +16,8 @@ import java.io.IOException;
 import javax.imageio.ImageIO;
 import java.awt.image.BufferedImage;
 
+import system.Player_SaveFile; // Import Player_SaveFile untuk akses database
+
 
 public class MainMenu {
     private MouseHandler mouseH;
@@ -61,7 +63,7 @@ public class MainMenu {
         try {
             logo = loadImage("/asset/logo.png", "asset/logo.png");
             startButtonMain = loadImage("/asset/button/startbutton.png", "asset/button/startbutton.png");
-            startButtonHover = loadImage("/asset/button/startbuttonhover.jpg", "asset/button/startbuttonhover.jpg");
+            startButtonHover = loadImage("/asset/button/startbuttonhover.png", "asset/button/startbuttonhover.jpg");
 
             if (logo == null || startButtonMain == null || startButtonHover == null) {
                 throw new IOException("UI images failed to load.");
@@ -76,10 +78,12 @@ public class MainMenu {
         menuBackground.update();
 
         //================ Start button ================
-        boolean isHovering = startButton.isHovering(350, 350, 200, 80, mouseH.mouseX, mouseH.mouseY);
+        boolean isHovering = startButton.isHovering(320, 350, 250, 120, mouseH.mouseX, mouseH.mouseY);
 
         if (mouseH.consumeLeftClick() && isHovering) {
             System.out.println("Swtich ke Gameplay State!");
+            // Load player data dari database sebelum masuk ke Gameplay
+            
             gsm.setState(GameStateManager.PLAY_STATE);
         }
         //==============================================
@@ -95,7 +99,7 @@ public class MainMenu {
         
         // draw UI untuk menu
         // draw button dengan hover effect
-        startButton.drawButton(g2, startButtonMain, startButtonHover, 350, 350, 200, 80, mouseH.mouseX, mouseH.mouseY);
+        startButton.drawButton(g2, startButtonMain, startButtonHover, 320, 350, 250, 120, mouseH.mouseX, mouseH.mouseY);
     
 
     }

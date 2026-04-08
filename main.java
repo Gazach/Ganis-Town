@@ -1,5 +1,7 @@
 import system.GamePanel;
 import javax.swing.JFrame;
+import java.awt.event.WindowAdapter;
+import java.awt.event.WindowEvent;
 public class main {
     public static void main(String[] args) {
         
@@ -19,6 +21,13 @@ public class main {
         window.setLocationRelativeTo(null);
         window.setVisible(true);
 
+        // Save game when window is closing
+        window.addWindowListener(new WindowAdapter() {
+            @Override
+            public void windowClosing(WindowEvent e) {
+                gamePanel.saveGame();
+            }
+        });
 
         //Ngejalanin game loop atau game thread
         gamePanel.startGameThread();

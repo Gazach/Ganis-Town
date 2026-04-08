@@ -41,13 +41,12 @@ public class GamePanel extends JPanel implements Runnable{
 	
 
 	// buat ngehandle gamestate
-	Gameplay gameplay = new Gameplay(keyH, this); 
+	Gameplay gameplay = new Gameplay(keyH, mouseH, this); 
 	MainMenu mainMenu = new MainMenu(keyH, mouseH, gsm, this); 
 	Thread gameThread;
 	//posisi awal spawn tersebut
 
 	public GamePanel(){
-
 		this.setPreferredSize(new Dimension(besarLayar, tinggiLayar));
 		this.setBackground(Color.black);
 		this.setDoubleBuffered(true);
@@ -56,6 +55,10 @@ public class GamePanel extends JPanel implements Runnable{
 		this.addMouseMotionListener(mouseH);
 		this.setFocusable(true);
 		this.requestFocusInWindow();
+
+		Player_SaveFile.createDatabase(); // seed DB once on startup
+		System.out.println("Database initialized.");
+		gsm.setGameplay(gameplay);        // give GSM the gameplay reference for auto-save
 
 		gsm.setState(GameStateManager.MENU_STATE);
 	}
@@ -169,6 +172,10 @@ public class GamePanel extends JPanel implements Runnable{
 		g2.drawImage(gameBuffer, xOffset, yOffset, drawWidth, drawHeight, null);
 
 		g2.dispose();
-}
+	}
+
+	public void saveGame() {
+		gameplay.saveGame();
+	}
 }
 

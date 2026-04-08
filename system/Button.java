@@ -1,7 +1,6 @@
 package system;
 import java.awt.Graphics2D;
 import java.awt.image.BufferedImage;
-import system.Sprite2D;
 
 public class Button {
     Sprite2D sprite = new Sprite2D();

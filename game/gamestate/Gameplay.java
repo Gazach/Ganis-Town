@@ -1,51 +1,101 @@
 package game.gamestate;
 
 import java.awt.Graphics2D;
+import java.awt.Color;
+import java.awt.Font;
 import system.KeyHandler;
 import game.entity.Player;
 import system.GamePanel;
+import system.Player_SaveFile;
+import system.Button;
+import system.MouseHandler;
+import javax.imageio.ImageIO;
+import java.io.File;
+import java.io.IOException;
+import java.awt.image.BufferedImage;
 
 public class Gameplay {
 
     KeyHandler keyH;
     Player player;
 
-    public int tileSize = 50; // <-- set sprite size
+    public int tileSize = 50;
     public int screenWidth;
     public int screenHeight;
-    int playerX = 100;
-    int playerY = 100;
-    int playerSpeed = 4;
     private GamePanel gp;
+    private int money; // loaded from save
+    private MouseHandler mouseH;
+    private Button button;
+    private BufferedImage buttonImage;
+    private BufferedImage buttonImageHover;
+    private int buttonX, buttonY, buttonWidth, buttonHeight;
 
-    // Constructor: initialize KeyHandler first, then player
-    public Gameplay(KeyHandler keyH, GamePanel gp) {
+    public Gameplay(KeyHandler keyH, MouseHandler mouseH, GamePanel gp) { //init sebelum run game
         this.keyH = keyH;
-        this.gp = gp; 
+        this.mouseH = mouseH;
+        this.gp = gp;
         this.tileSize = gp.tileSize;
         this.screenWidth = gp.besarLayar;
         this.screenHeight = gp.tinggiLayar;
+
+        // Load money from save
+        money = Player_SaveFile.loadPlayerData();
+
         this.player = new Player(this, keyH);
         gp.player = this.player;
-        
+
+        // Initialize button
+        button = new Button();
+        buttonX = screenWidth - 100;
+        buttonY = screenHeight - 50;
+        buttonWidth = 80;
+        buttonHeight = 40;
+
+        // Load button image
+        try {
+            buttonImage = ImageIO.read(new File("asset/button/startbutton.png"));
+            buttonImageHover = ImageIO.read(new File("asset/button/startbuttonhover.png"));
+        } catch (IOException e) {
+            e.printStackTrace();
+            // Placeholder if image not found
+            buttonImage = null;
+            buttonImageHover = null;
+        }
     }
 
-    public void updateGameplay(){
-        player.update();
+    public void saveGame() { // save game ke database
+        Player_SaveFile.savePlayerData(money);
+    }
+
+    public void updateGameplay(){ // Update untuk Logic gameplay, seperti input, movement, dll
+        player.update(); // update player dulu biar bisa akses posisinya untuk logic lain
+
+        // Check for button click
+        if (mouseH.consumeLeftClick() && button.isHovering(buttonX, buttonY, buttonWidth, buttonHeight, mouseH.mouseX, mouseH.mouseY)) {
+            money += 100;
+        }
     }
 
     public void drawGameplay(Graphics2D g2){
-        gp.tileM.draw(g2);
-        // Debug background for testing
-        //g2.setColor(Color.green); // light blue background
-        //g2.fillRect(0, 0, gp.besarLayar, gp.tinggiLayar); // background main menu
-        
-        //g2.setColor(Color.blue);
-        //g2.fillRect(playerX, playerY, tileSize, tileSize);
+        gp.tileM.draw(g2); // draw tile dulu biar background muncul sebelum player
+        player.draw(g2); // baru draw player setelah tile
 
-        //g2.setColor(Color.black);
-        //g2.drawString("Hello World", 100, 100);
+        // Draw monney/uang di pojok kiri atas
+        g2.setFont(new Font("Arial", Font.BOLD, 20));
+        g2.setColor(Color.BLACK); // shadow
+        g2.drawString("Money: " + money, 16, 41);
+        g2.setColor(Color.YELLOW); // main text
+        g2.drawString("Money: " + money, 15, 40);
 
-        player.draw(g2); // draw the player sprite
+        // Draw button
+        if (buttonImage != null && buttonImageHover != null) {
+            button.drawButton(g2, buttonImage, buttonImageHover, buttonX, buttonY, buttonWidth, buttonHeight, mouseH.mouseX, mouseH.mouseY);
+        } else {
+            // Fallback: draw a rectangle if image not loaded
+            g2.setColor(Color.BLUE);
+            g2.fillRect(buttonX, buttonY, buttonWidth, buttonHeight);
+            g2.setColor(Color.WHITE);
+            g2.drawString("Add Money", buttonX + 10, buttonY + 25);
+        }
     }
 }
