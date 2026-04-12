@@ -26,9 +26,10 @@ public class MainMenu {
 
     private BufferedImage logo; // placeholder untuk gambar
 
-    private Button startButton;
-    private BufferedImage startButtonMain;
-    private BufferedImage startButtonHover;
+    private Button newGameButton, loadGameButton, exitGameButton;
+    private BufferedImage newGameMain, newGameHover, newGameClicked;
+    private BufferedImage loadGameMain, loadGameHover, loadGameClicked;
+    private BufferedImage exitGameMain, exitGameHover, exitGameClicked;
 
 
     public MainMenu(KeyHandler keyH, MouseHandler mouseH, GameStateManager gsm, GamePanel gp) { // init sebelum run game
@@ -38,7 +39,9 @@ public class MainMenu {
         menuBackground = new MenuBackgroundParallax(gp);
         menuBackground.getImages();
 
-        startButton = new Button();
+        newGameButton = new Button();
+        loadGameButton = new Button();
+        exitGameButton = new Button();
 
         getImage(); // load gambar
     }
@@ -60,10 +63,23 @@ public class MainMenu {
     public void getImage() {
         try {
             logo = loadImage("/asset/logo.png", "asset/logo.png");
-            startButtonMain = loadImage("/asset/button/startbutton.png", "asset/button/startbutton.png");
-            startButtonHover = loadImage("/asset/button/startbuttonhover.png", "asset/button/startbuttonhover.jpg");
 
-            if (logo == null || startButtonMain == null || startButtonHover == null) {
+            newGameMain = loadImage("/asset/mainmenu/button/New_game_button.png", "asset/mainmenu/button/New_game_button.png");
+            newGameHover = loadImage("/asset/mainmenu/button/New_game_button_Hover.png", "asset/mainmenu/button/New_game_button_Hover.png");
+            newGameClicked = loadImage("/asset/mainmenu/button/New_game_button_Hover_Clicked.png", "asset/mainmenu/button/New_game_button_Hover_Clicked.png");
+
+            loadGameMain = loadImage("/asset/mainmenu/button/Load_game_button.png", "asset/mainmenu/button/Load_game_button.png");
+            loadGameHover = loadImage("/asset/mainmenu/button/Load_game_button_Hover.png", "asset/mainmenu/button/Load_game_button_Hover.png");
+            loadGameClicked = loadImage("/asset/mainmenu/button/Load_game_button_Hover_Clicked.png", "asset/mainmenu/button/Load_game_button_Hover_Clicked.png");
+
+            exitGameMain = loadImage("/asset/mainmenu/button/Exit_game_button.png", "asset/mainmenu/button/Exit_game_button.png");
+            exitGameHover = loadImage("/asset/mainmenu/button/Exit_game_button_Hover.png", "asset/mainmenu/button/Exit_game_button_Hover.png");
+            exitGameClicked = loadImage("/asset/mainmenu/button/Exit_game_button_Hover_Clicked.png", "asset/mainmenu/button/Exit_game_button_Hover_Clicked.png");
+
+            if (logo == null ||
+                newGameMain == null || newGameHover == null || newGameClicked == null ||
+                loadGameMain == null || loadGameHover == null || loadGameClicked == null ||
+                exitGameMain == null || exitGameHover == null || exitGameClicked == null) {
                 throw new IOException("UI images failed to load.");
             }
         } catch (IOException e) {
@@ -75,14 +91,37 @@ public class MainMenu {
     public void updateMenu() {
         menuBackground.update();
 
-        //================ Start button ================
-        boolean isHovering = startButton.isHovering(320, 350, 250, 120, mouseH.mouseX, mouseH.mouseY);
+        // Button dimensions and positions
+        int buttonWidth = 200;
+        int buttonHeight = 120;
+        int margin = 25;
+        int totalWidth = buttonWidth * 3 + margin * 2;
+        int startX = (gp.besarLayar - totalWidth) / 2;
+        int y = 350;
 
-        if (mouseH.consumeLeftClick() && isHovering) {
-            System.out.println("Swtich ke Gameplay State!");
-            // Load player data dari database sebelum masuk ke Gameplay
-            
+        boolean clicked = mouseH.consumeLeftClick(); // Cek klik sekali dan reset state klik setelahnya
+        //================ New Game button ================
+        boolean isHoveringNew = newGameButton.isHovering(startX, y, buttonWidth, buttonHeight, mouseH.mouseX, mouseH.mouseY);
+        if (clicked && isHoveringNew) {
+            System.out.println("Starting New Game!");
             gsm.setState(GameStateManager.PLAY_STATE);
+        }
+        //==============================================
+
+        //================ Load Game button ================
+        int loadX = startX + buttonWidth + margin;
+        boolean isHoveringLoad = loadGameButton.isHovering(loadX, y, buttonWidth, buttonHeight, mouseH.mouseX, mouseH.mouseY);
+        if (clicked && isHoveringLoad) {
+            System.out.println("Loading Game!");
+        }
+        //==============================================
+
+        //================ Exit Game button ================
+        int exitX = loadX + buttonWidth + margin;
+        boolean isHoveringExit = exitGameButton.isHovering(exitX, y, buttonWidth, buttonHeight, mouseH.mouseX, mouseH.mouseY);
+        if (clicked && isHoveringExit) {
+            System.out.println("Exiting Game!");
+            System.exit(0);
         }
         //==============================================
     }
@@ -97,8 +136,25 @@ public class MainMenu {
         
         // draw UI untuk menu
         // draw button dengan hover effect
-        startButton.drawButton(g2, startButtonMain, startButtonHover, 320, 350, 250, 120, mouseH.mouseX, mouseH.mouseY);
-    
 
+        // Button dimensions and positions
+        int buttonWidth = 200;
+        int buttonHeight = 120;
+        int margin = 25;
+        int totalWidth = buttonWidth * 3 + margin * 2;
+        int startX = (gp.besarLayar - totalWidth) / 2;
+        int y = 350;
+
+        // Draw buttons with clicked state
+        boolean isNewGameClicked = mouseH.leftPressed && newGameButton.isHovering(startX, y, buttonWidth, buttonHeight, mouseH.mouseX, mouseH.mouseY);
+        newGameButton.drawButton(g2, newGameMain, newGameHover, newGameClicked, startX, y, buttonWidth, buttonHeight, mouseH.mouseX, mouseH.mouseY, isNewGameClicked);
+
+        int loadX = startX + buttonWidth + margin;
+        boolean isLoadGameClicked = mouseH.leftPressed && loadGameButton.isHovering(loadX, y, buttonWidth, buttonHeight, mouseH.mouseX, mouseH.mouseY);
+        loadGameButton.drawButton(g2, loadGameMain, loadGameHover, loadGameClicked, loadX, y, buttonWidth, buttonHeight, mouseH.mouseX, mouseH.mouseY, isLoadGameClicked);
+
+        int exitX = loadX + buttonWidth + margin;
+        boolean isExitGameClicked = mouseH.leftPressed && exitGameButton.isHovering(exitX, y, buttonWidth, buttonHeight, mouseH.mouseX, mouseH.mouseY);
+        exitGameButton.drawButton(g2, exitGameMain, exitGameHover, exitGameClicked, exitX, y, buttonWidth, buttonHeight, mouseH.mouseX, mouseH.mouseY, isExitGameClicked);
     }
 }

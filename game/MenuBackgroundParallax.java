@@ -21,17 +21,18 @@ public class MenuBackgroundParallax {
     public void getImages() {
         try {
             // load gambar untuk setiap layer parallax
-            background = new BufferedImage[4];
+            background = new BufferedImage[5];
 
             background[0] = ImageIO.read(getClass().getResourceAsStream("/asset/MainMenuBackground/1.png"));
             background[1] = ImageIO.read(getClass().getResourceAsStream("/asset/MainMenuBackground/2.png"));
             background[2] = ImageIO.read(getClass().getResourceAsStream("/asset/MainMenuBackground/3.png"));
             background[3] = ImageIO.read(getClass().getResourceAsStream("/asset/MainMenuBackground/4.png"));
+            background[4] = ImageIO.read(getClass().getResourceAsStream("/asset/MainMenuBackground/5.png"));
 
             // inisialisasi posisi dan kecepatan untuk setiap layer
             bgX = new double[background.length];
             // kecepatan yang berbeda untuk menciptakan efek parallax
-            bgSpeed = new double[]{0.5, 1.0, 1.5, 2.0};
+            bgSpeed = new double[]{0.5, 1.0, 1.2, 1.6, 1.7}; // layer paling belakang paling lambat, layer paling depan paling cepat
 
         } catch (Exception e) {
             e.printStackTrace();
