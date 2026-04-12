@@ -145,7 +145,7 @@ public class MainMenu {
         int startX = (gp.besarLayar - totalWidth) / 2;
         int y = 350;
 
-        // Draw buttons with clicked state
+        // Draw buttons agar bisa diliat hover effectnya, klik effectnya, dan juga untuk cek apakah mouse sedang hover atau tidak
         boolean isNewGameClicked = mouseH.leftPressed && newGameButton.isHovering(startX, y, buttonWidth, buttonHeight, mouseH.mouseX, mouseH.mouseY);
         newGameButton.drawButton(g2, newGameMain, newGameHover, newGameClicked, startX, y, buttonWidth, buttonHeight, mouseH.mouseX, mouseH.mouseY, isNewGameClicked);
 

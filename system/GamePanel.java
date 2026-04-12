@@ -36,7 +36,8 @@ public class GamePanel extends JPanel implements Runnable{
 	public TileManager tileM = new TileManager(this);
 	KeyHandler keyH = new KeyHandler();
 	MouseHandler mouseH = new MouseHandler(this);
-	public Player player;
+	public int cameraWorldX = tileSize * 5;
+	public int cameraWorldY = tileSize * 5;
 	GameStateManager gsm = new GameStateManager(); // buat ngehandle state game
 	
 

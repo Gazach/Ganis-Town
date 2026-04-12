@@ -53,48 +53,9 @@ public class Player extends Entity {
     }
 
     public void update() {
-        boolean moving = false;
-        // untuk menghitung perubahan posisi berdasarkan input
-    
-
-        if(keyH.upPressed) { // ke atas
-            direction = "up";
-            worldY -= speed;
-            moving = true;
-        }
-        if(keyH.downPressed) { // ke bawah
-            direction = "down";
-            worldY += speed;
-            moving = true;
-        }
-        if(keyH.leftPressed) { // ke kiri
-            direction = "left";
-            worldX -= speed;
-            moving = true;
-        }
-        if(keyH.rightPressed) { // ke kanan
-            direction = "right";
-            worldX += speed;
-            moving = true;
-        }
-
-        // Normalisasi kecepatan diagonal agar gak lebih cepat saat bergerak diagonal
-        
-        
-
-        // Update posisi pemain
-        
-
-        // Update arah berdasarkan input
-        
-        // animasi sprite hanya jika pemain bergerak
-        if(moving){
-            spriteCounter++;
-            if(spriteCounter > 6){
-                spriteNum = (spriteNum == 1) ? 2 : 1;
-                spriteCounter = 0;
-            }
-        }
+        // Animation for sprite (can be based on movement, but for drag, perhaps always still or detect change)
+        // For now, keep sprite static or add logic later
+        // Since movement is handled by drag in Gameplay, no keyboard input here
     }
 
     public void draw(Graphics2D g2){

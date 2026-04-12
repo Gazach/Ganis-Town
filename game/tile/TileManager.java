@@ -116,7 +116,6 @@ public class TileManager {
     }
     public void draw(Graphics2D g2){
         // ini gambar tile pada x:0 y:0 yang bertambah 1 setiap udah menggambarkan jadi nanti 1 dan 1 dan seterusnya
-        if(gp.player == null)return;
         int Worldcol = 0;
         int Worldrow = 0;
     
@@ -127,13 +126,13 @@ public class TileManager {
             int tileNum = mapTileNum[Worldcol][Worldrow];
             int worldX = Worldcol * gp.tileSize;
             int worldY = Worldrow * gp.tileSize;
-            int screenX = worldX - gp.player.worldX + gp.player.screenX;
-            int screenY = worldY - gp.player.worldY + gp.player.screenY;
+            int screenX = worldX - gp.cameraWorldX + gp.besarLayar/2;
+            int screenY = worldY - gp.cameraWorldY + gp.tinggiLayar/2;
             // untuk biar gambarnya hanya ngerender yang ada di layar user jadi biar mulus performa
-            if (worldX + gp.tileSize > gp.player.worldX - gp.player.screenX &&
-                worldX - gp.tileSize< gp.player.worldX + gp.player.screenX &&
-                worldY + gp.tileSize> gp.player.worldY - gp.player.screenY &&
-                worldY - gp.tileSize< gp.player.worldY + gp.player.screenY){
+            if (worldX + gp.tileSize > gp.cameraWorldX - gp.besarLayar/2 &&
+                worldX - gp.tileSize< gp.cameraWorldX + gp.besarLayar/2 &&
+                worldY + gp.tileSize> gp.cameraWorldY - gp.tinggiLayar/2 &&
+                worldY - gp.tileSize< gp.cameraWorldY + gp.tinggiLayar/2){
 
                     
 

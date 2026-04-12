@@ -2,38 +2,26 @@ package game.gamestate;
 
 // Load Graphics
 import java.awt.Graphics2D;
-import java.awt.Color;
-import java.awt.Font;
 
 // load system
 import system.KeyHandler;
-import game.entity.Player;
 import system.GamePanel;
-import system.Player_SaveFile;
-import system.Button;
 import system.MouseHandler;
-
-//load image
-import javax.imageio.ImageIO;
-import java.io.File;
-import java.io.IOException;
-import java.awt.image.BufferedImage;
 
 public class Gameplay {
 
     KeyHandler keyH;
-    Player player;
+    // Player removed
 
     public int tileSize = 50;
     public int screenWidth;
     public int screenHeight;
     private GamePanel gp;
-    private int money; // loaded from save
     private MouseHandler mouseH;
-    private Button button;
-    private BufferedImage buttonImage;
-    private BufferedImage buttonImageHover;
-    private int buttonX, buttonY, buttonWidth, buttonHeight;
+
+    private boolean isDragging = false;
+    private int dragStartMouseX, dragStartMouseY;
+    private int dragStartCameraX, dragStartCameraY;
 
     public Gameplay(KeyHandler keyH, MouseHandler mouseH, GamePanel gp) { //init sebelum run game
         this.keyH = keyH;
@@ -44,64 +32,50 @@ public class Gameplay {
         this.screenHeight = gp.tinggiLayar;
 
         // Load Semua data milik player dari database.
-        money = Player_SaveFile.loadPlayerData();
+        // Removed money and player
 
+        // Player removed
 
-        this.player = new Player(this, keyH);
-        gp.player = this.player;
-
-        // Initialize button
-        button = new Button();
-        buttonX = screenWidth - 100;
-        buttonY = screenHeight - 50;
-        buttonWidth = 80;
-        buttonHeight = 40;
-
-        // Load button image
-        try {
-            buttonImage = ImageIO.read(new File("asset/button/startbutton.png"));
-            buttonImageHover = ImageIO.read(new File("asset/button/startbuttonhover.png"));
-        } catch (IOException e) {
-            e.printStackTrace();
-            // Placeholder if image not found
-            buttonImage = null;
-            buttonImageHover = null;
-        }
+        // Button removed
     }
 
-    public void saveGame() { // save game ke database
-        Player_SaveFile.savePlayerData(money);
+    public void saveGame() { // save game - nothing to save now
+        // Removed money save
     }
 
     public void updateGameplay(){ // Update untuk Logic gameplay, seperti input, movement, dll
-        player.update(); // update player dulu biar bisa akses posisinya untuk logic lain
+        // Handle mouse drag for camera movement
+        if (mouseH.leftPressed) {
+            if (!isDragging) {
+                isDragging = true;
+                dragStartMouseX = mouseH.mouseX;
+                dragStartMouseY = mouseH.mouseY;
+                dragStartCameraX = gp.cameraWorldX;
+                dragStartCameraY = gp.cameraWorldY;
+            } else {
+                // Update camera position based on drag (inverted controls)
+                int deltaX = mouseH.mouseX - dragStartMouseX;
+                int deltaY = mouseH.mouseY - dragStartMouseY;
+                gp.cameraWorldX = dragStartCameraX - deltaX;
+                gp.cameraWorldY = dragStartCameraY - deltaY;
 
-        // Check for button click
-        if (mouseH.consumeLeftClick() && button.isHovering(buttonX, buttonY, buttonWidth, buttonHeight, mouseH.mouseX, mouseH.mouseY)) {
-            money += 100;
+                // Clamp to world bounds
+                if (gp.cameraWorldX < 0) gp.cameraWorldX = 0;
+                if (gp.cameraWorldY < 0) gp.cameraWorldY = 0;
+                if (gp.cameraWorldX > gp.worldWidth - gp.besarLayar) gp.cameraWorldX = gp.worldWidth - gp.besarLayar;
+                if (gp.cameraWorldY > gp.worldHeight - gp.tinggiLayar) gp.cameraWorldY = gp.worldHeight - gp.tinggiLayar;
+            }
+        } else {
+            isDragging = false;
         }
+
+        // Player update removed
+        // Button removed
     }
 
     public void drawGameplay(Graphics2D g2){
-        gp.tileM.draw(g2); // draw tile dulu biar background muncul sebelum player
-        player.draw(g2); // baru draw player setelah tile
+        gp.tileM.draw(g2); // draw tile
 
-        // Draw monney/uang di pojok kiri atas
-        g2.setFont(new Font("Arial", Font.BOLD, 20));
-        g2.setColor(Color.BLACK); // shadow
-        g2.drawString("Money: " + money, 16, 41);
-        g2.setColor(Color.YELLOW); // main text
-        g2.drawString("Money: " + money, 15, 40);
-
-        // Draw button
-        if (buttonImage != null && buttonImageHover != null) {
-            button.drawButton(g2, buttonImage, buttonImageHover, buttonX, buttonY, buttonWidth, buttonHeight, mouseH.mouseX, mouseH.mouseY);
-        } else {
-            // Fallback: draw kotak sederhana jika gambar tidak tersedia
-            g2.setColor(Color.BLUE);
-            g2.fillRect(buttonX, buttonY, buttonWidth, buttonHeight);
-            g2.setColor(Color.WHITE);
-            g2.drawString("Add Money", buttonX + 30, buttonY + 25);
-        }
+        // Player and money removed - just 2D camera view
     }
 }
