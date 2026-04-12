@@ -30,13 +30,6 @@ public class Gameplay {
         this.tileSize = gp.tileSize;
         this.screenWidth = gp.besarLayar;
         this.screenHeight = gp.tinggiLayar;
-
-        // Load Semua data milik player dari database.
-        // Removed money and player
-
-        // Player removed
-
-        // Button removed
     }
 
     public void saveGame() { // save game - nothing to save now
@@ -44,33 +37,31 @@ public class Gameplay {
     }
 
     public void updateGameplay(){ // Update untuk Logic gameplay, seperti input, movement, dll
-        // Handle mouse drag for camera movement
+        // update player camera based dari dragging mouse
         if (mouseH.leftPressed) {
-            if (!isDragging) {
+            if (!isDragging) { // jika baru mulai drag, simpan posisi awal mouse dan kamera
                 isDragging = true;
                 dragStartMouseX = mouseH.mouseX;
                 dragStartMouseY = mouseH.mouseY;
                 dragStartCameraX = gp.cameraWorldX;
                 dragStartCameraY = gp.cameraWorldY;
             } else {
-                // Update camera position based on drag (inverted controls)
+                // update posisi kamera berdasarkan seberapa jauh mouse sudah digeser dari posisi awal
                 int deltaX = mouseH.mouseX - dragStartMouseX;
                 int deltaY = mouseH.mouseY - dragStartMouseY;
                 gp.cameraWorldX = dragStartCameraX - deltaX;
                 gp.cameraWorldY = dragStartCameraY - deltaY;
 
-                // Clamp to world bounds
-                if (gp.cameraWorldX < 0) gp.cameraWorldX = 0;
-                if (gp.cameraWorldY < 0) gp.cameraWorldY = 0;
-                if (gp.cameraWorldX > gp.worldWidth - gp.besarLayar) gp.cameraWorldX = gp.worldWidth - gp.besarLayar;
-                if (gp.cameraWorldY > gp.worldHeight - gp.tinggiLayar) gp.cameraWorldY = gp.worldHeight - gp.tinggiLayar;
+                // batasin kamera agar tidak keluar dari world bounds
+                // if (gp.cameraWorldX < 0) gp.cameraWorldX = 0;
+                // if (gp.cameraWorldY < 0) gp.cameraWorldY = 0;
+                // if (gp.cameraWorldX > gp.worldWidth - gp.besarLayar) gp.cameraWorldX = gp.worldWidth - gp.besarLayar;
+                // if (gp.cameraWorldY > gp.worldHeight - gp.tinggiLayar) gp.cameraWorldY = gp.worldHeight - gp.tinggiLayar;
             }
         } else {
             isDragging = false;
         }
 
-        // Player update removed
-        // Button removed
     }
 
     public void drawGameplay(Graphics2D g2){
