@@ -26,6 +26,7 @@ public class main {
             @Override
             public void windowClosing(WindowEvent e) {
                 gamePanel.saveGame();
+                System.out.println("Game Berhasil di save!.");
             }
         });
 

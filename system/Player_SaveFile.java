@@ -5,7 +5,7 @@ import java.sql.*;
 public class Player_SaveFile {
     private static final String DB_URL = "jdbc:sqlite:player_save.db";
 
-    public static void createDatabase() {
+    public static void createDatabase() { // Membuat database dan tabel jika belum ada
         try (Connection conn = DriverManager.getConnection(DB_URL);
              Statement stmt = conn.createStatement()) {
 
@@ -25,7 +25,7 @@ public class Player_SaveFile {
         }
     }
 
-    public static int loadPlayerData() {
+    public static int loadPlayerData() { // load data player dari database
         try (Connection conn = DriverManager.getConnection(DB_URL);
              Statement stmt = conn.createStatement();
              ResultSet rs = stmt.executeQuery(
@@ -42,7 +42,7 @@ public class Player_SaveFile {
         return 100; // fallback default
     }
 
-    public static void savePlayerData(int money) {
+    public static void savePlayerData(int money) { // menyimpan data player ke database
         try (Connection conn = DriverManager.getConnection(DB_URL);
              PreparedStatement pstmt = conn.prepareStatement(
                  "INSERT OR REPLACE INTO player_save (id, money) " +
