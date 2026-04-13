@@ -16,8 +16,14 @@ public class Player_SaveFile {
             );
 
             stmt.execute(
-                "INSERT OR IGNORE INTO player_save (id, money) " +
-                "VALUES (1, 100)"
+                "CREATE TABLE IF NOT EXISTS world_map (" +
+                "id INTEGER PRIMARY KEY," +
+                "map_data TEXT)"
+            );
+
+            stmt.execute(
+                "INSERT OR IGNORE INTO world_map (id, map_data) " +
+                "VALUES (1, '')"
             );
 
         } catch (SQLException e) {
@@ -42,17 +48,53 @@ public class Player_SaveFile {
         return 100; // fallback default
     }
 
-    public static void savePlayerData(int money) { // menyimpan data player ke database
+    public static void saveWorldMap(int[][] worldMap) {
+        StringBuilder sb = new StringBuilder();
+        for (int y = 0; y < worldMap[0].length; y++) {
+            for (int x = 0; x < worldMap.length; x++) {
+                sb.append(worldMap[x][y]);
+                if (x < worldMap.length - 1) sb.append(",");
+            }
+            if (y < worldMap[0].length - 1) sb.append(";");
+        }
+        String mapData = sb.toString();
         try (Connection conn = DriverManager.getConnection(DB_URL);
              PreparedStatement pstmt = conn.prepareStatement(
-                 "INSERT OR REPLACE INTO player_save (id, money) " +
+                 "INSERT OR REPLACE INTO world_map (id, map_data) " +
                  "VALUES (1, ?)")) {
 
-            pstmt.setInt(1, money);
+            pstmt.setString(1, mapData);
             pstmt.executeUpdate();
 
         } catch (SQLException e) {
-            System.out.println("Error saving player data: " + e.getMessage());
+            System.out.println("Error saving world map: " + e.getMessage());
         }
+    }
+
+    public static int[][] loadWorldMap() {
+        try (Connection conn = DriverManager.getConnection(DB_URL);
+             Statement stmt = conn.createStatement();
+             ResultSet rs = stmt.executeQuery(
+                 "SELECT map_data FROM world_map WHERE id = 1")) {
+
+            if (rs.next()) {
+                String mapData = rs.getString("map_data");
+                if (mapData == null || mapData.isEmpty()) return null;
+                String[] rows = mapData.split(";");
+                int[][] worldMap = new int[100][100]; // assuming 100x100
+                for (int y = 0; y < rows.length; y++) {
+                    String[] cols = rows[y].split(",");
+                    for (int x = 0; x < cols.length; x++) {
+                        worldMap[x][y] = Integer.parseInt(cols[x]);
+                    }
+                }
+                return worldMap;
+            }
+
+        } catch (SQLException e) {
+            System.out.println("Error loading world map: " + e.getMessage());
+        }
+
+        return null;
     }
 }

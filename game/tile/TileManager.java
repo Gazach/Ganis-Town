@@ -22,10 +22,12 @@ public class TileManager {
 
         this.gp = gp;
         tile = new Tile [10];
-        mapTileNum = new int [gp.maxWorldCol][gp.maxWorldRow];
         getTileIMage();
-        loadMap("/asset/maps/worldmap.txt");
 
+    }
+
+    public void setMap(int[][] worldMap) {
+        mapTileNum = worldMap;
     }
     public void getTileIMage(){
         try{

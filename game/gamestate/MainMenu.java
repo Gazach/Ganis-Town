@@ -23,6 +23,7 @@ public class MainMenu {
     private GameStateManager gsm;
     private GamePanel gp;
     private MenuBackgroundParallax menuBackground;
+    private Gameplay gameplay;
 
     private BufferedImage logo; // placeholder untuk gambar
 
@@ -32,10 +33,11 @@ public class MainMenu {
     private BufferedImage exitGameMain, exitGameHover, exitGameClicked;
 
 
-    public MainMenu(KeyHandler keyH, MouseHandler mouseH, GameStateManager gsm, GamePanel gp) { // init sebelum run game
+    public MainMenu(KeyHandler keyH, MouseHandler mouseH, GameStateManager gsm, GamePanel gp, Gameplay gameplay) { // init sebelum run game
         this.mouseH = mouseH;
         this.gsm = gsm; // Initialize GameStateManager
         this.gp = gp; // Initialize GamePanel
+        this.gameplay = gameplay;
         menuBackground = new MenuBackgroundParallax(gp);
         menuBackground.getImages();
 
@@ -104,6 +106,7 @@ public class MainMenu {
         boolean isHoveringNew = newGameButton.isHovering(startX, y, buttonWidth, buttonHeight, mouseH.mouseX, mouseH.mouseY);
         if (clicked && isHoveringNew) {
             System.out.println("Starting New Game!");
+            gameplay.generateWorld();
             gsm.setState(GameStateManager.PLAY_STATE);
         }
         //==============================================
@@ -113,6 +116,8 @@ public class MainMenu {
         boolean isHoveringLoad = loadGameButton.isHovering(loadX, y, buttonWidth, buttonHeight, mouseH.mouseX, mouseH.mouseY);
         if (clicked && isHoveringLoad) {
             System.out.println("Loading Game!");
+            gameplay.loadWorldMap();
+            gsm.setState(GameStateManager.PLAY_STATE);
         }
         //==============================================
 

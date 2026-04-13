@@ -7,6 +7,8 @@ import java.awt.Graphics2D;
 import system.KeyHandler;
 import system.GamePanel;
 import system.MouseHandler;
+import system.PerlinNoise;
+import system.Player_SaveFile;
 
 public class Gameplay {
 
@@ -23,6 +25,8 @@ public class Gameplay {
     private int dragStartMouseX, dragStartMouseY;
     private int dragStartCameraX, dragStartCameraY;
 
+    public int[][] worldMap;
+
     public Gameplay(KeyHandler keyH, MouseHandler mouseH, GamePanel gp) { //init sebelum run game
         this.keyH = keyH;
         this.mouseH = mouseH;
@@ -30,10 +34,23 @@ public class Gameplay {
         this.tileSize = gp.tileSize;
         this.screenWidth = gp.besarLayar;
         this.screenHeight = gp.tinggiLayar;
+        worldMap = new int[gp.maxWorldCol][gp.maxWorldRow];
     }
 
-    public void saveGame() { // save game - nothing to save now
-        // Removed money save
+    public void generateWorld() {
+        PerlinNoise noise = new PerlinNoise(System.currentTimeMillis()); // seed with current time for randomness
+        for (int x = 0; x < gp.maxWorldCol; x++) {
+            for (int y = 0; y < gp.maxWorldRow; y++) {
+                double value = noise.octaveNoise(x * 0.05, y * 0.05, 4, 0.5); // larger scale for bigger features
+                // Threshold for water: only very low values become water for tiny lakes
+                if (value < -0.15) { // adjust threshold to make water rarer
+                    worldMap[x][y] = 2; // water
+                } else {
+                    worldMap[x][y] = 0; // grass
+                }
+            }
+        }
+        gp.tileM.setMap(worldMap);
     }
 
     public void updateGameplay(){ // Update untuk Logic gameplay, seperti input, movement, dll
@@ -53,10 +70,10 @@ public class Gameplay {
                 gp.cameraWorldY = dragStartCameraY - deltaY;
 
                 // batasin kamera agar tidak keluar dari world bounds
-                // if (gp.cameraWorldX < 0) gp.cameraWorldX = 0;
-                // if (gp.cameraWorldY < 0) gp.cameraWorldY = 0;
-                // if (gp.cameraWorldX > gp.worldWidth - gp.besarLayar) gp.cameraWorldX = gp.worldWidth - gp.besarLayar;
-                // if (gp.cameraWorldY > gp.worldHeight - gp.tinggiLayar) gp.cameraWorldY = gp.worldHeight - gp.tinggiLayar;
+                if (gp.cameraWorldX < gp.besarLayar / 2) gp.cameraWorldX = gp.besarLayar / 2;
+                if (gp.cameraWorldY < gp.tinggiLayar / 2) gp.cameraWorldY = gp.tinggiLayar / 2;
+                if (gp.cameraWorldX > gp.worldWidth - gp.besarLayar / 2) gp.cameraWorldX = gp.worldWidth - gp.besarLayar / 2;
+                if (gp.cameraWorldY > gp.worldHeight - gp.tinggiLayar / 2) gp.cameraWorldY = gp.worldHeight - gp.tinggiLayar / 2;
             }
         } else {
             isDragging = false;
@@ -64,9 +81,23 @@ public class Gameplay {
 
     }
 
+    public void loadWorldMap() {
+        int[][] loadedMap = Player_SaveFile.loadWorldMap();
+        if (loadedMap != null) {
+            worldMap = loadedMap;
+            gp.tileM.setMap(worldMap);
+        } else {
+            generateWorld(); // if no save, generate new
+        }
+    }
+
     public void drawGameplay(Graphics2D g2){
         gp.tileM.draw(g2); // draw tile
 
         // Player and money removed - just 2D camera view
+    }
+
+    public void saveGame() { // save game
+        Player_SaveFile.saveWorldMap(worldMap);
     }
 }

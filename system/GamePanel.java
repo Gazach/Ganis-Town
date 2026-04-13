@@ -8,7 +8,6 @@ import javax.swing.JPanel;
 import java.awt.Graphics2D;
 import java.awt.image.BufferedImage;
 
-import game.entity.Player;
 // gamestate
 import game.gamestate.Gameplay;
 import game.gamestate.MainMenu;
@@ -22,28 +21,28 @@ public class GamePanel extends JPanel implements Runnable{
 	final int scale = 3;//INI SCALE NYA JADI 16X3 ITU KAN 48 JADI 48 PIXEL 
 	public final int tileSize = originalTileSize * scale; //Perhitungan untuk yang atas
 	//Untuk besar layarnya
-	public final int maxScreenCol = 18;
-	public final int maxScreenRow = 12;
+	public final int maxScreenCol = 20;
+	public final int maxScreenRow = 14;
 	public final int besarLayar = tileSize * maxScreenCol; //Jadi besarnya 864
 	public final int tinggiLayar = tileSize * maxScreenRow; //Tingginya 576
 	//WORLD SETTINGS
 	// ini itu untuk seberapa gede dunianya
-	public final int maxWorldCol = 50;
-	public final int maxWorldRow = 50;
+	public final int maxWorldCol = 100;
+	public final int maxWorldRow = 100 ;
 	public final int worldWidth = tileSize * maxWorldCol;
 	public final int worldHeight = tileSize * maxWorldRow;
 	//
 	public TileManager tileM = new TileManager(this);
 	KeyHandler keyH = new KeyHandler();
 	MouseHandler mouseH = new MouseHandler(this);
-	public int cameraWorldX = tileSize * 5;
-	public int cameraWorldY = tileSize * 5;
+	public int cameraWorldX = tileSize * 50; // spawn in middle of 100x100 map
+	public int cameraWorldY = tileSize * 50;
 	GameStateManager gsm = new GameStateManager(); // buat ngehandle state game
 	
 
 	// buat ngehandle gamestate
 	Gameplay gameplay = new Gameplay(keyH, mouseH, this); 
-	MainMenu mainMenu = new MainMenu(keyH, mouseH, gsm, this); 
+	MainMenu mainMenu = new MainMenu(keyH, mouseH, gsm, this, gameplay); 
 	Thread gameThread;
 	//posisi awal spawn tersebut
 
