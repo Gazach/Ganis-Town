@@ -1,27 +1,35 @@
 @echo off
 echo ===========================
-echo   Building Java Project...
+echo   Building Java Fat JAR...
 echo ===========================
 
 :: Config
 set OUT_DIR=out
+set BUILD_DIR=build
+set TEMP_DIR=temp_extract
 set ASSETS_DIR=asset
 set LIB_DIR=lib
 set MAIN_CLASS=main
+set JAR_NAME=ganis_town.jar
 
-:: Create output folder if missing
-if not exist %OUT_DIR% mkdir %OUT_DIR%
+:: Clean previous build (SAFE)
+if exist %OUT_DIR% rmdir /s /q %OUT_DIR%
+if exist %BUILD_DIR% rmdir /s /q %BUILD_DIR%
+if exist %TEMP_DIR% rmdir /s /q %TEMP_DIR%
+if exist %JAR_NAME% del %JAR_NAME%
 
-:: Collect ALL .java files from root + subfolders
+mkdir %OUT_DIR%
+mkdir %BUILD_DIR%
+mkdir %TEMP_DIR%
+
+:: ===========================
+:: COMPILE SOURCE
+:: ===========================
+echo Compiling source...
 dir /s /b *.java > sources.txt
 
-:: Compile everything
-echo Compiling...
 javac -cp "%LIB_DIR%\*" -d %OUT_DIR% @sources.txt
 
-echo Compiling finished with code %ERRORLEVEL%.
-
-:: Check IMMEDIATELY after javac, before anything else touches ERRORLEVEL
 if %ERRORLEVEL% NEQ 0 (
     echo.
     echo [ERROR] Compilation failed!
@@ -34,16 +42,72 @@ del sources.txt
 echo [OK] Compilation successful!
 echo.
 
-:: Copy assets to out/asset/
+:: ===========================
+:: COPY CLASSES
+:: ===========================
+echo Copying compiled classes...
+xcopy /e /i /y "%OUT_DIR%\*" "%BUILD_DIR%\" > nul
+
+:: ===========================
+:: COPY ASSETS
+:: ===========================
 echo Copying assets...
-if not exist "%OUT_DIR%\%ASSETS_DIR%" mkdir "%OUT_DIR%\%ASSETS_DIR%"
-xcopy /e /i /y "%ASSETS_DIR%\*" "%OUT_DIR%\%ASSETS_DIR%\" > nul
-echo [OK] Assets copied!
+if exist "%ASSETS_DIR%" (
+    xcopy /e /i /y "%ASSETS_DIR%\*" "%BUILD_DIR%\%ASSETS_DIR%\" > nul
+)
+echo [OK] Assets ready!
 echo.
 
-:: Run
-echo Running...
+:: ===========================
+:: EXTRACT LIBRARIES SAFELY
+:: ===========================
+echo Extracting libraries...
+
+for %%f in (%LIB_DIR%\*.jar) do (
+    echo   -> %%~nxf
+    cd %TEMP_DIR%
+    jar xf "..\%%f"
+    cd ..
+    xcopy /e /i /y "%TEMP_DIR%\*" "%BUILD_DIR%\" > nul
+    rmdir /s /q %TEMP_DIR%
+    mkdir %TEMP_DIR%
+)
+
+echo [OK] Libraries merged!
+echo.
+
+:: ===========================
+:: CREATE MANIFEST
+:: ===========================
+echo Creating manifest...
+echo Main-Class: %MAIN_CLASS% > manifest.txt
+echo. >> manifest.txt
+
+:: ===========================
+:: BUILD JAR
+:: ===========================
+echo Building FAT JAR...
+jar cfm %JAR_NAME% manifest.txt -C %BUILD_DIR% .
+
+if %ERRORLEVEL% NEQ 0 (
+    echo.
+    echo [ERROR] JAR creation failed!
+    del manifest.txt
+    pause
+    exit /b 1
+)
+
+del manifest.txt
+rmdir /s /q %TEMP_DIR%
+
+echo [OK] FAT JAR created: %JAR_NAME%
+echo.
+
+:: ===========================
+:: TEST RUN
+:: ===========================
+echo Running JAR...
 echo ===========================
-java -cp "%OUT_DIR%;%LIB_DIR%\*" %MAIN_CLASS%
+java -jar %JAR_NAME%
 
 pause
