@@ -26,6 +26,7 @@ public class Gameplay {
     private int dragStartCameraX, dragStartCameraY;
 
     public int[][] worldMap;
+    Toolbar toolbar = new Toolbar();
 
     public Gameplay(KeyHandler keyH, MouseHandler mouseH, GamePanel gp) { //init sebelum run game
         this.keyH = keyH;
@@ -78,6 +79,7 @@ public class Gameplay {
         } else {
             isDragging = false;
         }
+        toolbar.update(mouseH.mouseX, mouseH.mouseY, mouseH.leftPressed);
 
     }
 
@@ -93,6 +95,7 @@ public class Gameplay {
 
     public void drawGameplay(Graphics2D g2){
         gp.tileM.draw(g2); // draw tile
+        toolbar.draw(g2, screenWidth, screenHeight, mouseH.mouseX, mouseH.mouseY);
 
         // Player and money removed - just 2D camera view
     }
