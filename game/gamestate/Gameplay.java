@@ -81,7 +81,7 @@ public class Gameplay {
 
     }
 
-    public void loadWorldMap() {
+    public void loadWorldMap() { // ngeload world map dari save file, kalau ga ada save file, generate baru
         int[][] loadedMap = Player_SaveFile.loadWorldMap();
         if (loadedMap != null) {
             worldMap = loadedMap;
@@ -92,7 +92,7 @@ public class Gameplay {
     }
 
     public void drawGameplay(Graphics2D g2){
-        gp.tileM.draw(g2); // draw tile
+        gp.tileM.draw(g2); // draw tile world berdasarkan camera position, tanpa player karena ini 2D top-down dengan kamera yang bisa digeser, jadi playernya kayak di tengah layar terus dan yang digeser itu kameranya, bukan playernya.
 
         // Player and money removed - just 2D camera view
     }

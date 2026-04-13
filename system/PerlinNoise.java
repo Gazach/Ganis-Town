@@ -1,5 +1,7 @@
 package system;
 
+// Perlin noise paste dari AI, untuk generate world map di Gameplay :)
+
 public class PerlinNoise {
     private int[] permutation;
 
