@@ -96,6 +96,7 @@ public class Gameplay {
     public void drawGameplay(Graphics2D g2){
         gp.tileM.draw(g2); // draw tile
 
+        toolbar.draw(g2, screenWidth, screenHeight, mouseH.mouseX, mouseH.mouseY);
         // Player and money removed - just 2D camera view
     }
 

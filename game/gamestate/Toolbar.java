@@ -53,7 +53,7 @@ public class Toolbar {
     }
 
     public void draw(Graphics2D g2, int screenWidth, int screenHeight, int mouseX, int mouseY) {
-        g2.setColor(new Color(50, 50, 50, 200));
+        g2.setColor(new Color(50, 50, 50, 254)); // semi-transparent dark background
         g2.fillRect(0, screenHeight - toolbarHeight, screenWidth, toolbarHeight);
         
         for (int i = 0; i < BuildingType.values().length; i++) {
