@@ -12,7 +12,9 @@ public class MouseHandler implements MouseListener, MouseMotionListener {
     public int mouseX = -1;
     public int mouseY = -1;
     public boolean leftPressed = false;
+    public boolean rightPressed = false;
     private boolean leftClicked = false;
+    private boolean rightClicked = false;
 
     public MouseHandler(GamePanel gp) {
         this.gp = gp;
@@ -59,6 +61,9 @@ public class MouseHandler implements MouseListener, MouseMotionListener {
         if (e.getButton() == MouseEvent.BUTTON1) {
             leftPressed = true;
             leftClicked = true;
+        } else if (e.getButton() == MouseEvent.BUTTON3) {
+            rightPressed = true;
+            rightClicked = true;
         }
     }
 
@@ -67,6 +72,8 @@ public class MouseHandler implements MouseListener, MouseMotionListener {
         updateMousePosition(e);
         if (e.getButton() == MouseEvent.BUTTON1) {
             leftPressed = false;
+        } else if (e.getButton() == MouseEvent.BUTTON3) {
+            rightPressed = false;
         }
     }
 

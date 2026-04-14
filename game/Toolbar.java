@@ -1,12 +1,12 @@
-package game.gamestate;
+package game;
 
-import game.BuildingType;
 import java.awt.Color;
 import java.awt.Graphics2D;
 import java.awt.image.BufferedImage;
 import java.io.IOException;
 import javax.imageio.ImageIO;
 import system.Button;
+import game.gamestate.Gameplay;
 
 public class Toolbar {
     Button button = new Button();
@@ -14,7 +14,7 @@ public class Toolbar {
     BufferedImage[] btnNormal;
     BufferedImage[] btnHover;
     
-    BuildingType selectedBuilding = null;
+    public BuildingType selectedBuilding = null;
     
     int toolbarHeight = 80;
     int btnSize = 64;
@@ -52,7 +52,7 @@ public class Toolbar {
         }
     }
 
-    public void draw(Graphics2D g2, int screenWidth, int screenHeight, int mouseX, int mouseY) {
+    public void draw(Graphics2D g2, int screenWidth, int screenHeight, int mouseX, int mouseY, Gameplay gameplay) {
         g2.setColor(new Color(50, 50, 50, 254)); // semi-transparent dark background
         g2.fillRect(0, screenHeight - toolbarHeight, screenWidth, toolbarHeight);
         
@@ -61,6 +61,14 @@ public class Toolbar {
             int y = screenHeight - toolbarHeight + 8;
             
             button.drawButton(g2, btnNormal[i], btnHover[i], x, y, btnSize, btnSize, mouseX, mouseY);
+        }
+    }
+
+    public void handleClick(int mouseX, int mouseY, int screenHeight, Gameplay gameplay) {
+        BuildingType clicked = getClickedBuilding(mouseX, mouseY, screenHeight);
+        if (clicked != null) {
+            selectedBuilding = clicked;
+            gameplay.toggleGrid(); // Toggle grid when a building is selected
         }
     }
     

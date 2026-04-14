@@ -3,6 +3,8 @@ package game.gamestate;
 // Load Graphics
 import java.awt.Graphics2D;
 
+import game.Toolbar;
+import game.BuildingType;
 // load system
 import system.KeyHandler;
 import system.GamePanel;
@@ -26,16 +28,19 @@ public class Gameplay {
     private int dragStartCameraX, dragStartCameraY;
 
     public int[][] worldMap;
+    public BuildingType[][] buildingsMap; // Layer for buildings on top of terrain
+    private boolean showGrid = false;
     Toolbar toolbar = new Toolbar();
 
     public Gameplay(KeyHandler keyH, MouseHandler mouseH, GamePanel gp) { //init sebelum run game
         this.keyH = keyH;
         this.mouseH = mouseH;
         this.gp = gp;
-        this.tileSize = gp.tileSize;
+        this.tileSize = gp.tileSize; // Use the same tileSize as GamePanel for proper alignment
         this.screenWidth = gp.besarLayar;
         this.screenHeight = gp.tinggiLayar;
         worldMap = new int[gp.maxWorldCol][gp.maxWorldRow];
+        buildingsMap = new BuildingType[gp.maxWorldCol][gp.maxWorldRow];
     }
 
     public void generateWorld() {
@@ -53,7 +58,7 @@ public class Gameplay {
         }
         gp.tileM.setMap(worldMap);
     }
-
+ 
     public void updateGameplay(){ // Update untuk Logic gameplay, seperti input, movement, dll
         // update player camera based dari dragging mouse
         if (mouseH.leftPressed) {
@@ -79,10 +84,15 @@ public class Gameplay {
         } else {
             isDragging = false;
         }
+        
+        // Handle toolbar clicks
+        if (mouseH.consumeLeftClick()) {
+            toolbar.handleClick(mouseH.mouseX, mouseH.mouseY, screenHeight, this);
+        }
+        
         toolbar.update(mouseH.mouseX, mouseH.mouseY, mouseH.leftPressed);
-
     }
-
+    // Method untuk load world map dari save file, kalau ga ada save file, generate baru
     public void loadWorldMap() { // ngeload world map dari save file, kalau ga ada save file, generate baru
         int[][] loadedMap = Player_SaveFile.loadWorldMap();
         if (loadedMap != null) {
@@ -93,10 +103,76 @@ public class Gameplay {
         }
     }
 
-    public void drawGameplay(Graphics2D g2){
-        gp.tileM.draw(g2); // draw tile
+    public void toggleGrid() {
+        showGrid = !showGrid;
+    }
 
-        toolbar.draw(g2, screenWidth, screenHeight, mouseH.mouseX, mouseH.mouseY);
+    public boolean isGridVisible() {
+        return showGrid;
+    }
+ // Method untuk menempatkan bangunan di koordinat tertentu, dipanggil saat player klik di map dengan building yang dipilih
+ // belum bekerja sepenuhnya
+    public void placeBuilding(int worldX, int worldY, BuildingType building) {
+        if (building == null) return;
+        
+        // Convert world coordinates to grid coordinates
+        int gridX = worldX / tileSize;
+        int gridY = worldY / tileSize;
+        
+        // Check bounds
+        if (gridX >= 0 && gridX < gp.maxWorldCol && gridY >= 0 && gridY < gp.maxWorldRow) {
+            buildingsMap[gridX][gridY] = building;
+        }
+    }
+
+    // Method untuk mendapatkan jenis bangunan di koordinat tertentu, bisa dipakai untuk interaksi atau info tooltip
+    public BuildingType getBuilding(int worldX, int worldY) {
+        int gridX = worldX / tileSize;
+        int gridY = worldY / tileSize;
+        
+        if (gridX >= 0 && gridX < gp.maxWorldCol && gridY >= 0 && gridY < gp.maxWorldRow) {
+            return buildingsMap[gridX][gridY];
+        }
+        return null;
+    }
+
+    private void drawGrid(Graphics2D g2) { // membuat grid overlay untuk bantu player dalam menempatkan bangunan, bisa di toggle on/off
+        if (!showGrid) return;
+
+        // Calculate which tiles are visible on screen
+        int startX = (gp.cameraWorldX - gp.besarLayar / 2) / tileSize;
+        int startY = (gp.cameraWorldY - gp.tinggiLayar / 2) / tileSize;
+        int endX = startX + (gp.besarLayar / tileSize) + 2;
+        int endY = startY + (gp.tinggiLayar / tileSize) + 2;
+
+        // Clamp to world bounds
+        startX = Math.max(0, startX);
+        startY = Math.max(0, startY);
+        endX = Math.min(gp.maxWorldCol, endX);
+        endY = Math.min(gp.maxWorldRow, endY);
+
+        g2.setColor(new java.awt.Color(255, 255, 255, 100)); // semi-transparent white
+        g2.setStroke(new java.awt.BasicStroke(1));
+
+        // Draw vertical lines
+        for (int x = startX; x <= endX; x++) {
+            int screenX = x * tileSize - (gp.cameraWorldX - gp.besarLayar / 2);
+            g2.drawLine(screenX, 0, screenX, gp.tinggiLayar);
+        }
+
+        // Draw horizontal lines
+        for (int y = startY; y <= endY; y++) {
+            int screenY = y * tileSize - (gp.cameraWorldY - gp.tinggiLayar / 2);
+            g2.drawLine(0, screenY, gp.besarLayar, screenY);
+        }
+    }
+
+    public void drawGameplay(Graphics2D g2){
+        gp.tileM.draw(g2); // gambar tile berdasarkan worldMap
+
+        drawGrid(g2); // gambar grid di atas tile
+
+        toolbar.draw(g2, screenWidth, screenHeight, mouseH.mouseX, mouseH.mouseY, this);
         // Player and money removed - just 2D camera view
     }
 
