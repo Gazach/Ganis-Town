@@ -8,6 +8,7 @@ public class KeyHandler implements KeyListener{
     public boolean upPressed, downPressed, leftPressed, rightPressed;
 
     public boolean enterPressed; // untuk tombol enter
+    public boolean escapePressed; // untuk kembali ke main menu
 
     @Override
     public void keyTyped(KeyEvent e){//belom ini
@@ -37,6 +38,9 @@ public class KeyHandler implements KeyListener{
         if(code == KeyEvent.VK_ENTER){
             enterPressed = true;
         }
+        if(code == KeyEvent.VK_ESCAPE){
+            escapePressed = true;
+        }
     }
 
         @Override
@@ -57,6 +61,9 @@ public class KeyHandler implements KeyListener{
             }
             if(code == KeyEvent.VK_ENTER){
                 enterPressed = false;
+            }
+            if(code == KeyEvent.VK_ESCAPE){
+                escapePressed = false;
             }
         }
 

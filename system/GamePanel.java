@@ -112,6 +112,11 @@ public class GamePanel extends JPanel implements Runnable{
 	public void update() {
 		// buat bikin logika update game di sini, misalnya untuk menggerakkan karakter
 		if (gsm.isPlaying()) {
+			if (keyH.escapePressed) {
+				gsm.setState(GameStateManager.MENU_STATE);
+				keyH.escapePressed = false;
+				return;
+			}
 			gameplay.updateGameplay();
 		}
 		if (gsm.isMainMenu()) {
