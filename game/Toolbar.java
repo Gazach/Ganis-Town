@@ -14,7 +14,7 @@ public class Toolbar {
     BufferedImage[] btnNormal;
     BufferedImage[] btnHover;
     
-    public BuildingType selectedBuilding = null;
+    private BuildingType selectedBuilding = null;
     
     int toolbarHeight = 80;
     int btnSize = 64;
@@ -30,11 +30,13 @@ public class Toolbar {
         btnHover  = new BufferedImage[total];
 
         try {
-            
-            btnNormal[0] = ImageIO.read(getClass().getResourceAsStream("/asset/Toolbar/house_normal.png"));
-            
+            BufferedImage normal = ImageIO.read(getClass().getResourceAsStream("/asset/Toolbar/house_normal.png"));
+            BufferedImage hover = ImageIO.read(getClass().getResourceAsStream("/asset/Toolbar/house_hover.png"));
 
-            btnHover[0] = ImageIO.read(getClass().getResourceAsStream("/asset/Toolbar/house_hover.png"));
+            for (int i = 0; i < total; i++) {
+                btnNormal[i] = normal;
+                btnHover[i] = hover;
+            }
             
         } catch (IOException e) {
             e.printStackTrace();
@@ -43,13 +45,8 @@ public class Toolbar {
 
 
     
-    public void update(int mouseX, int mouseY, boolean isClicked) {
-        if (isClicked) {
-            BuildingType clicked = getClickedBuilding(mouseX, mouseY, 576);
-            if (clicked != null) {
-                selectedBuilding = clicked;
-            }
-        }
+    public void update(int mouseX, int mouseY) {
+        // Reserved for hover/animation updates if needed.
     }
 
     public void draw(Graphics2D g2, int screenWidth, int screenHeight, int mouseX, int mouseY, Gameplay gameplay) {
@@ -67,9 +64,34 @@ public class Toolbar {
     public void handleClick(int mouseX, int mouseY, int screenHeight, Gameplay gameplay) {
         BuildingType clicked = getClickedBuilding(mouseX, mouseY, screenHeight);
         if (clicked != null) {
-            selectedBuilding = clicked;
-            gameplay.toggleGrid(); // Toggle grid when a building is selected
+            boolean isSameSelection = (selectedBuilding == clicked);
+            if (isSameSelection) {
+                selectedBuilding = null;
+                if (gameplay.isGridVisible()) {
+                    gameplay.toggleGrid();
+                }
+            } else {
+                selectedBuilding = clicked;
+                if (!gameplay.isGridVisible()) {
+                    gameplay.toggleGrid();
+                }
+            }
         }
+    }
+
+    public BuildingType getSelectedBuilding() {
+        return selectedBuilding;
+    }
+
+    public BufferedImage getBuildingImage(BuildingType building) {
+        if (building == null) {
+            return null;
+        }
+        return btnNormal[building.ordinal()];
+    }
+
+    public boolean isInsideToolbar(int mouseY, int screenHeight) {
+        return mouseY >= screenHeight - toolbarHeight;
     }
     
     public BuildingType getClickedBuilding(int mouseX, int mouseY, int screenHeight) {

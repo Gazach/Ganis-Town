@@ -2,6 +2,8 @@ package game.gamestate;
 
 // Load Graphics
 import java.awt.Graphics2D;
+import java.awt.Color;
+import java.awt.image.BufferedImage;
 
 import game.Toolbar;
 import game.BuildingType;
@@ -29,6 +31,7 @@ public class Gameplay {
 
     public int[][] worldMap;
     public BuildingType[][] buildingsMap; // Layer for buildings on top of terrain
+    private boolean[][] buildingOccupiedMap;
     private boolean showGrid = false;
     Toolbar toolbar = new Toolbar();
 
@@ -41,6 +44,7 @@ public class Gameplay {
         this.screenHeight = gp.tinggiLayar;
         worldMap = new int[gp.maxWorldCol][gp.maxWorldRow];
         buildingsMap = new BuildingType[gp.maxWorldCol][gp.maxWorldRow];
+        buildingOccupiedMap = new boolean[gp.maxWorldCol][gp.maxWorldRow];
     }
 
     public void generateWorld() {
@@ -85,22 +89,39 @@ public class Gameplay {
             isDragging = false;
         }
         
-        // Handle toolbar clicks
-        if (mouseH.consumeLeftClick()) {
-            toolbar.handleClick(mouseH.mouseX, mouseH.mouseY, screenHeight, this);
+        if (mouseH.consumeLeftClick()) { // handle left click untuk interaksi, seperti klik toolbar atau tempatin bangunan di map
+            if (toolbar.isInsideToolbar(mouseH.mouseY, screenHeight)) {
+                toolbar.handleClick(mouseH.mouseX, mouseH.mouseY, screenHeight, this);
+            } else if (showGrid && toolbar.getSelectedBuilding() != null) {
+                int worldX = screenToWorldX(mouseH.mouseX);
+                int worldY = screenToWorldY(mouseH.mouseY);
+                placeBuilding(worldX, worldY, toolbar.getSelectedBuilding());
+            }
         }
         
-        toolbar.update(mouseH.mouseX, mouseH.mouseY, mouseH.leftPressed);
+        toolbar.update(mouseH.mouseX, mouseH.mouseY);
     }
     // Method untuk load world map dari save file, kalau ga ada save file, generate baru
     public void loadWorldMap() { // ngeload world map dari save file, kalau ga ada save file, generate baru
         int[][] loadedMap = Player_SaveFile.loadWorldMap();
+        BuildingType[][] loadedBuildingsMap = Player_SaveFile.loadBuildingsMap();
+
         if (loadedMap != null) {
             worldMap = loadedMap;
             gp.tileM.setMap(worldMap);
         } else {
             generateWorld(); // if no save, generate new
         }
+
+        if (loadedBuildingsMap != null
+            && loadedBuildingsMap.length == gp.maxWorldCol
+            && loadedBuildingsMap[0].length == gp.maxWorldRow) {
+            buildingsMap = loadedBuildingsMap;
+        } else {
+            buildingsMap = new BuildingType[gp.maxWorldCol][gp.maxWorldRow];
+        }
+
+        rebuildBuildingOccupancyMap();
     }
 
     public void toggleGrid() {
@@ -119,9 +140,9 @@ public class Gameplay {
         int gridX = worldX / tileSize;
         int gridY = worldY / tileSize;
         
-        // Check bounds
-        if (gridX >= 0 && gridX < gp.maxWorldCol && gridY >= 0 && gridY < gp.maxWorldRow) {
+        if (canPlaceBuildingAt(gridX, gridY, building)) {
             buildingsMap[gridX][gridY] = building;
+            markBuildingOccupied(gridX, gridY, building, true);
         }
     }
 
@@ -167,10 +188,151 @@ public class Gameplay {
         }
     }
 
+    //Method untuk konversi koordinat layar ke koordinat dunia, dipakai untuk menentukan tile mana yang di klik saat mau tempatin bangunan
+    private int screenToWorldX(int screenX) {
+        return screenX + gp.cameraWorldX - gp.besarLayar / 2;
+    }
+
+    // Method untuk konversi koordinat layar ke koordinat dunia, dipakai untuk menentukan tile mana yang di klik saat mau tempatin bangunan
+    private int screenToWorldY(int screenY) {
+        return screenY + gp.cameraWorldY - gp.tinggiLayar / 2;
+    }
+
+    // Method untuk menandai area yang ditempati oleh bangunan sebagai occupied di buildingOccupiedMap, agar tidak bisa ditempati bangunan lain di atasnya
+    private void markBuildingOccupied(int anchorX, int anchorY, BuildingType building, boolean occupied) {
+        int width = building.getWidth();
+        int height = building.getHeight();
+
+        for (int x = anchorX; x < anchorX + width; x++) {
+            for (int y = anchorY; y < anchorY + height; y++) {
+                if (x >= 0 && x < gp.maxWorldCol && y >= 0 && y < gp.maxWorldRow) {
+                    buildingOccupiedMap[x][y] = occupied;
+                }
+            }
+        }
+    }
+
+    private void rebuildBuildingOccupancyMap() { // setelah load game, bangunan yang sudah ada di world map perlu di mark sebagai occupied di buildingOccupiedMap agar tidak bisa ditempatin bangunan lain di atasnya
+        buildingOccupiedMap = new boolean[gp.maxWorldCol][gp.maxWorldRow];
+
+        for (int x = 0; x < gp.maxWorldCol; x++) {
+            for (int y = 0; y < gp.maxWorldRow; y++) {
+                BuildingType building = buildingsMap[x][y];
+                if (building != null) {
+                    markBuildingOccupied(x, y, building, true);
+                }
+            }
+        }
+    }
+
+    private boolean canPlaceBuildingAt(int gridX, int gridY, BuildingType building) {
+        int width = building.getWidth();
+        int height = building.getHeight();
+
+        if (gridX < 0 || gridY < 0 || gridX + width > gp.maxWorldCol || gridY + height > gp.maxWorldRow) {
+            return false;
+        }
+
+        for (int x = gridX; x < gridX + width; x++) {
+            for (int y = gridY; y < gridY + height; y++) {
+                if (buildingOccupiedMap[x][y] || worldMap[x][y] == 2) {
+                    return false;
+                }
+            }
+        }
+
+        return true;
+    }
+
+    private void drawBuildings(Graphics2D g2) { // gambar bangunan di atas terrain, hanya gambar yang berada di layar saja untuk performa
+        int startX = (gp.cameraWorldX - gp.besarLayar / 2) / tileSize;
+        int startY = (gp.cameraWorldY - gp.tinggiLayar / 2) / tileSize;
+        int endX = startX + (gp.besarLayar / tileSize) + 2;
+        int endY = startY + (gp.tinggiLayar / tileSize) + 2;
+
+        startX = Math.max(0, startX);
+        startY = Math.max(0, startY);
+        endX = Math.min(gp.maxWorldCol - 1, endX);
+        endY = Math.min(gp.maxWorldRow - 1, endY);
+
+        for (int x = startX; x <= endX; x++) {
+            for (int y = startY; y <= endY; y++) {
+                BuildingType building = buildingsMap[x][y];
+                if (building == null) {
+                    continue;
+                }
+
+                int worldX = x * tileSize;
+                int worldY = y * tileSize;
+                int screenX = worldX - gp.cameraWorldX + gp.besarLayar / 2;
+                int screenY = worldY - gp.cameraWorldY + gp.tinggiLayar / 2;
+                int drawWidth = tileSize * building.getWidth();
+                int drawHeight = tileSize * building.getHeight();
+
+                BufferedImage image = toolbar.getBuildingImage(building);
+                if (image != null) {
+                    g2.drawImage(image, screenX, screenY, drawWidth, drawHeight, null);
+                } else {
+                    g2.setColor(new Color(190, 150, 90));
+                    g2.fillRect(screenX, screenY, drawWidth, drawHeight);
+                }
+            }
+        }
+    }
+
+    private void drawBuildingPreview(Graphics2D g2) { // gambar preview bangunan saat player hover dengan building yang dipilih, warna preview berubah jadi merah kalau ga bisa ditempatin di situ
+        BuildingType selected = toolbar.getSelectedBuilding();
+        if (!showGrid || selected == null || mouseH.mouseX < 0 || mouseH.mouseY < 0) {
+            return;
+        }
+
+        if (toolbar.isInsideToolbar(mouseH.mouseY, screenHeight)) {
+            return;
+        }
+
+        int worldX = screenToWorldX(mouseH.mouseX);
+        int worldY = screenToWorldY(mouseH.mouseY);
+        int gridX = worldX / tileSize;
+        int gridY = worldY / tileSize;
+
+        int previewWidth = selected.getWidth();
+        int previewHeight = selected.getHeight();
+
+        if (gridX < 0 || gridY < 0 || gridX + previewWidth > gp.maxWorldCol || gridY + previewHeight > gp.maxWorldRow) {
+            return;
+        }
+
+        int snappedWorldX = gridX * tileSize;
+        int snappedWorldY = gridY * tileSize;
+        int screenX = snappedWorldX - gp.cameraWorldX + gp.besarLayar / 2;
+        int screenY = snappedWorldY - gp.cameraWorldY + gp.tinggiLayar / 2;
+        int drawWidth = tileSize * previewWidth;
+        int drawHeight = tileSize * previewHeight;
+
+        boolean canPlace = canPlaceBuildingAt(gridX, gridY, selected);
+        BufferedImage image = toolbar.getBuildingImage(selected);
+
+        if (image != null) {
+            g2.setComposite(java.awt.AlphaComposite.getInstance(java.awt.AlphaComposite.SRC_OVER, canPlace ? 0.6f : 0.35f));
+            g2.drawImage(image, screenX, screenY, drawWidth, drawHeight, null);
+            g2.setComposite(java.awt.AlphaComposite.getInstance(java.awt.AlphaComposite.SRC_OVER, 1f));
+        } else {
+            g2.setColor(canPlace ? new Color(120, 255, 120, 130) : new Color(255, 80, 80, 130));
+            g2.fillRect(screenX, screenY, drawWidth, drawHeight);
+        }
+
+        g2.setColor(canPlace ? new Color(90, 255, 90, 220) : new Color(255, 80, 80, 220));
+        g2.drawRect(screenX, screenY, drawWidth, drawHeight);
+    }
+
     public void drawGameplay(Graphics2D g2){
         gp.tileM.draw(g2); // gambar tile berdasarkan worldMap
 
+        drawBuildings(g2); // gambar bangunan di atas terrain
+
         drawGrid(g2); // gambar grid di atas tile
+
+        drawBuildingPreview(g2); // gambar preview saat mau menaruh bangunan
 
         toolbar.draw(g2, screenWidth, screenHeight, mouseH.mouseX, mouseH.mouseY, this);
         // Player and money removed - just 2D camera view
@@ -178,5 +340,6 @@ public class Gameplay {
 
     public void saveGame() { // save game
         Player_SaveFile.saveWorldMap(worldMap);
+        Player_SaveFile.saveBuildingsMap(buildingsMap);
     }
 }
