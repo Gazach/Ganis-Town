@@ -60,7 +60,23 @@ public class Gameplay {
                 }
             }
         }
+
+        // New terrain means no placed buildings should remain.
+        buildingsMap = new BuildingType[gp.maxWorldCol][gp.maxWorldRow];
+        buildingOccupiedMap = new boolean[gp.maxWorldCol][gp.maxWorldRow];
         gp.tileM.setMap(worldMap);
+    }
+
+    public void startNewGame() {
+        generateWorld();
+        gp.cameraWorldX = gp.worldWidth / 2;
+        gp.cameraWorldY = gp.worldHeight / 2;
+        resetBuildModeState();
+    }
+
+    private void resetBuildModeState() {
+        showGrid = false;
+        toolbar.clearSelection();
     }
  
     public void updateGameplay(){ // Update untuk Logic gameplay, seperti input, movement, dll
@@ -103,6 +119,8 @@ public class Gameplay {
     }
     // Method untuk load world map dari save file, kalau ga ada save file, generate baru
     public void loadWorldMap() { // ngeload world map dari save file, kalau ga ada save file, generate baru
+        resetBuildModeState();
+
         int[][] loadedMap = Player_SaveFile.loadWorldMap();
         BuildingType[][] loadedBuildingsMap = Player_SaveFile.loadBuildingsMap();
 

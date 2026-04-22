@@ -106,7 +106,7 @@ public class MainMenu {
         boolean isHoveringNew = newGameButton.isHovering(startX, y, buttonWidth, buttonHeight, mouseH.mouseX, mouseH.mouseY);
         if (clicked && isHoveringNew) {
             System.out.println("Starting New Game!");
-            gameplay.generateWorld();
+            gameplay.startNewGame();
             gsm.setState(GameStateManager.PLAY_STATE);
         }
         //==============================================
