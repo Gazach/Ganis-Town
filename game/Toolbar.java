@@ -25,23 +25,33 @@ public class Toolbar {
     }
 
     private void loadImages() {
-        int total = BuildingType.values().length;
-        btnNormal = new BufferedImage[total];
-        btnHover  = new BufferedImage[total];
+    int total = BuildingType.values().length;
+    btnNormal = new BufferedImage[total];
+    btnHover  = new BufferedImage[total];
 
+    // Urutan HARUS sama dengan urutan enum di BuildingType.java
+    String[] normalImages = {
+        "/asset/Toolbar/house_normal.png",        // HOUSE
+        "/asset/Toolbar/building2x2_normal.png",  // BUILDING_2X2
+        "/asset/Toolbar/building2x4_normal.png"   // BUILDING_2X4
+    };
+
+    String[] hoverImages = {
+        "/asset/Toolbar/house_hover.png",
+        "/asset/Toolbar/building2x2_hover.png",
+        "/asset/Toolbar/building2x4_hover.png"
+    };
+
+    for (int i = 0; i < total; i++) {
         try {
-            BufferedImage normal = ImageIO.read(getClass().getResourceAsStream("/asset/Toolbar/house_normal.png"));
-            BufferedImage hover = ImageIO.read(getClass().getResourceAsStream("/asset/Toolbar/house_hover.png"));
-
-            for (int i = 0; i < total; i++) {
-                btnNormal[i] = normal;
-                btnHover[i] = hover;
-            }
-            
+            btnNormal[i] = ImageIO.read(getClass().getResourceAsStream(normalImages[i]));
+            btnHover[i]  = ImageIO.read(getClass().getResourceAsStream(hoverImages[i]));
         } catch (IOException e) {
+            System.err.println("Gagal load gambar: " + normalImages[i]);
             e.printStackTrace();
         }
     }
+}
 
 
     

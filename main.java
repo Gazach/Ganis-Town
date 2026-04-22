@@ -2,7 +2,7 @@ import system.GamePanel;
 import javax.swing.JFrame;
 import java.awt.event.WindowAdapter;
 import java.awt.event.WindowEvent;
-public class Main {
+public class main {
     public static void main(String[] args) {
         
         //Membuat window atau frame untuk game
