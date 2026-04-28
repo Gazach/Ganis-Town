@@ -1,6 +1,5 @@
 package game;
 
-import java.awt.Color;
 import java.awt.Graphics2D;
 import java.awt.image.BufferedImage;
 import java.io.File;
@@ -8,6 +7,7 @@ import java.io.IOException;
 import java.io.InputStream;
 import javax.imageio.ImageIO;
 import system.Button;
+import system.panel;
 import game.gamestate.Gameplay;
 
 public class Toolbar {
@@ -17,12 +17,14 @@ public class Toolbar {
     BufferedImage[] btnHover;
     
     private BuildingType selectedBuilding = null;
+    private panel toolbarPanel;
     
     int toolbarHeight = 80;
     int btnSize = 64;
     int btnPadding = 10;
 
     public Toolbar() {
+        toolbarPanel = new panel();
         loadImages(); 
     }
 
@@ -80,8 +82,7 @@ public class Toolbar {
     }
 
     public void draw(Graphics2D g2, int screenWidth, int screenHeight, int mouseX, int mouseY, Gameplay gameplay) {
-        g2.setColor(new Color(50, 50, 50, 254)); // semi-transparent dark background
-        g2.fillRect(0, screenHeight - toolbarHeight, screenWidth, toolbarHeight);
+        toolbarPanel.draw(g2, 0, screenHeight - toolbarHeight, screenWidth, toolbarHeight);
         
         for (int i = 0; i < BuildingType.values().length; i++) {
             int x = btnPadding + i * (btnSize + btnPadding);
