@@ -1,7 +1,10 @@
 package system;
 
 import java.sql.*;
+import java.nio.charset.StandardCharsets;
+import java.util.Base64;
 import game.BuildingType;
+import game.BuildingInstance;
 
 public class Player_SaveFile {
     private static final String DB_URL = "jdbc:sqlite:player_save.db";
@@ -110,12 +113,12 @@ public class Player_SaveFile {
         return null;
     }
 
-    public static void saveBuildingsMap(BuildingType[][] buildingsMap) { //menyimpan data bangunan ke database dengan format string yang bisa di-parse kembali saat load
+    public static void saveBuildingsMap(BuildingInstance[][] buildingsMap) { //menyimpan data bangunan ke database dengan format string yang bisa di-parse kembali saat load
         StringBuilder sb = new StringBuilder();
         for (int y = 0; y < buildingsMap[0].length; y++) {
             for (int x = 0; x < buildingsMap.length; x++) {
-                BuildingType building = buildingsMap[x][y];
-                sb.append(building == null ? -1 : building.ordinal());
+                BuildingInstance building = buildingsMap[x][y];
+                sb.append(encodeBuildingCell(building));
                 if (x < buildingsMap.length - 1) sb.append(",");
             }
             if (y < buildingsMap[0].length - 1) sb.append(";");
@@ -134,7 +137,7 @@ public class Player_SaveFile {
         }
     }
 
-    public static BuildingType[][] loadBuildingsMap() { //load data bangunan dari database dan parsing kembali ke format BuildingType[][]
+    public static BuildingInstance[][] loadBuildingsMap() { //load data bangunan dari database dan parsing kembali ke format BuildingInstance[][]
         try (Connection conn = DriverManager.getConnection(DB_URL);
              Statement stmt = conn.createStatement();
              ResultSet rs = stmt.executeQuery(
@@ -147,17 +150,12 @@ public class Player_SaveFile {
                 String[] rows = mapData.split(";");
                 int width = rows[0].split(",").length;
                 int height = rows.length;
-                BuildingType[][] buildingsMap = new BuildingType[width][height];
+                BuildingInstance[][] buildingsMap = new BuildingInstance[width][height];
 
                 for (int y = 0; y < rows.length; y++) {
                     String[] cols = rows[y].split(",");
                     for (int x = 0; x < cols.length; x++) {
-                        int buildingOrdinal = Integer.parseInt(cols[x]);
-                        if (buildingOrdinal >= 0 && buildingOrdinal < BuildingType.values().length) {
-                            buildingsMap[x][y] = BuildingType.values()[buildingOrdinal];
-                        } else {
-                            buildingsMap[x][y] = null;
-                        }
+                        buildingsMap[x][y] = decodeBuildingCell(cols[x]);
                     }
                 }
                 return buildingsMap;
@@ -168,5 +166,46 @@ public class Player_SaveFile {
         }
 
         return null;
+    }
+
+    private static String encodeBuildingCell(BuildingInstance building) {
+        if (building == null) {
+            return "-1";
+        }
+
+        String name = building.getName().length() > 100 ? building.getName().substring(0, 100) : building.getName();
+        String encodedName = Base64.getEncoder().encodeToString(name.getBytes(StandardCharsets.UTF_8));
+        return building.getType().ordinal() + ":" + encodedName;
+    }
+
+    private static BuildingInstance decodeBuildingCell(String cell) {
+        if (cell == null || cell.isEmpty() || cell.equals("-1")) {
+            return null;
+        }
+
+        try {
+            // Backward compatibility for old save format (only ordinal)
+            if (!cell.contains(":")) {
+                int ordinal = Integer.parseInt(cell);
+                if (ordinal < 0 || ordinal >= BuildingType.values().length) {
+                    return null;
+                }
+
+                BuildingType type = BuildingType.values()[ordinal];
+                String generatedName = type.name().toLowerCase().replace('_', ' ');
+                return new BuildingInstance(type, generatedName);
+            }
+
+            String[] parts = cell.split(":", 2);
+            int ordinal = Integer.parseInt(parts[0]);
+            if (ordinal < 0 || ordinal >= BuildingType.values().length) {
+                return null;
+            }
+
+            String name = new String(Base64.getDecoder().decode(parts[1]), StandardCharsets.UTF_8);
+            return new BuildingInstance(BuildingType.values()[ordinal], name);
+        } catch (IllegalArgumentException e) {
+            return null;
+        }
     }
 }

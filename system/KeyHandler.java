@@ -9,9 +9,16 @@ public class KeyHandler implements KeyListener{
 
     public boolean enterPressed; // untuk tombol enter
     public boolean escapePressed; // untuk kembali ke main menu
+    private boolean enterClicked;
+    private boolean backspaceClicked;
+    private StringBuilder typedChars = new StringBuilder();
 
     @Override
-    public void keyTyped(KeyEvent e){//belom ini
+    public void keyTyped(KeyEvent e){// input karakter untuk text field in-game
+        char c = e.getKeyChar();
+        if (!Character.isISOControl(c)) {
+            typedChars.append(c);
+        }
     }
 
     @Override
@@ -37,9 +44,13 @@ public class KeyHandler implements KeyListener{
         // ESC untuk pergi ke gameplay
         if(code == KeyEvent.VK_ENTER){
             enterPressed = true;
+            enterClicked = true;
         }
         if(code == KeyEvent.VK_ESCAPE){
             escapePressed = true;
+        }
+        if(code == KeyEvent.VK_BACK_SPACE){
+            backspaceClicked = true;
         }
     }
 
@@ -66,6 +77,32 @@ public class KeyHandler implements KeyListener{
                 escapePressed = false;
             }
         }
+
+    public String consumeTypedChars() {
+        if (typedChars.length() == 0) {
+            return "";
+        }
+
+        String value = typedChars.toString();
+        typedChars.setLength(0);
+        return value;
+    }
+
+    public boolean consumeEnterClick() {
+        if (enterClicked) {
+            enterClicked = false;
+            return true;
+        }
+        return false;
+    }
+
+    public boolean consumeBackspaceClick() {
+        if (backspaceClicked) {
+            backspaceClicked = false;
+            return true;
+        }
+        return false;
+    }
 
     
 }
