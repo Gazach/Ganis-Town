@@ -9,7 +9,7 @@ set BUILD_DIR=build
 set TEMP_DIR=temp_extract
 set ASSETS_DIR=asset
 set LIB_DIR=lib
-set MAIN_CLASS=Main
+set MAIN_CLASS=main
 set JAR_NAME=ganis_town.jar
 
 :: Clean previous build (SAFE)

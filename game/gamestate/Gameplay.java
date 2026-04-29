@@ -52,6 +52,8 @@ public class Gameplay {
     private Font buildingInfoTitleFont;
     private Font buildingInfoBodyFont;
     Toolbar toolbar = new Toolbar();
+    private int playerMoney = 2500;
+    private long lastIncomeTime = System.currentTimeMillis();
 
     // konstanta untuk layout panel info detail bangunan, untuk memudahkan penyesuaian tampilan
     private static final int BUILDING_INFO_PANEL_TOP_BOTTOM_MARGIN = 40;
@@ -106,6 +108,8 @@ public class Gameplay {
         generateWorld();
         gp.cameraWorldX = gp.worldWidth / 2;
         gp.cameraWorldY = gp.worldHeight / 2;
+        playerMoney = 2500;
+        lastIncomeTime = System.currentTimeMillis();
         resetBuildModeState();
     }
 
@@ -172,6 +176,31 @@ public class Gameplay {
         }
         
         toolbar.update(mouseH.mouseX, mouseH.mouseY);
+        tickBuildingIncome();
+    }
+
+    // Setiap detik, kumpulkan income dari semua bangunan yang sudah ditempatkan
+    private void tickBuildingIncome() {
+        long now = System.currentTimeMillis();
+        long elapsed = now - lastIncomeTime;
+        if (elapsed < 1000) return;
+
+        int seconds = (int) (elapsed / 1000);
+        lastIncomeTime += seconds * 1000L;
+
+        int earned = 0;
+        for (int x = 0; x < gp.maxWorldCol; x++) {
+            for (int y = 0; y < gp.maxWorldRow; y++) {
+                BuildingType type = buildingsMap[x][y];
+                if (type != null) {
+                    earned += type.getIncomePerSecond() * seconds;
+                }
+            }
+        }
+
+        if (earned > 0) {
+            playerMoney += earned;
+        }
     }
     // Method untuk load world map dari save file, kalau ga ada save file, generate baru
     public void loadWorldMap() { // ngeload world map dari save file, kalau ga ada save file, generate baru
@@ -186,6 +215,9 @@ public class Gameplay {
         } else {
             generateWorld(); // if no save, generate new
         }
+
+        playerMoney = Player_SaveFile.loadPlayerData();
+        lastIncomeTime = System.currentTimeMillis();
 
         if (loadedBuildingsMap != null
             && loadedBuildingsMap.length == gp.maxWorldCol
@@ -213,16 +245,20 @@ public class Gameplay {
  // belum bekerja sepenuhnya
     public void placeBuilding(int worldX, int worldY, BuildingType building) {
         if (building == null) return;
-        
+
+        if (playerMoney < building.getPrice()) return; // not enough money
+
         // Convert world coordinates to grid coordinates
         int gridX = worldX / tileSize;
         int gridY = worldY / tileSize;
-        
+
         if (canPlaceBuildingAt(gridX, gridY, building)) {
             BuildingInstance instance = createBuildingInstance(building);
             buildingsMap[gridX][gridY] = building;
             buildingDataMap[gridX][gridY] = instance;
             markBuildingOccupied(gridX, gridY, building, true);
+            playerMoney -= building.getPrice();
+            saveGame();
         }
     }
 
@@ -549,6 +585,7 @@ public class Gameplay {
             textX,
             bodyY + 18
         );
+        g2.drawString("Income: +" + selectedBuildingInfo.getType().getIncomePerSecond() + "/sec", textX, bodyY + 36);
     }
 
     // Method untuk handle input saat sedang edit nama bangunan, menangkap karakter yang diketik, backspace, dan enter untuk save
@@ -730,16 +767,53 @@ public class Gameplay {
 
         drawBuildingPreview(g2); // gambar preview saat mau menaruh bangunan
 
-        
         // gambar toolbar di atas semua layer lain, jadi selalu terlihat
         toolbar.draw(g2, screenWidth, screenHeight, mouseH.mouseX, mouseH.mouseY, this);
-        
+
         // gambar UI detail bangunan saat player klik bangunan di map
         drawBuildingDetailUI(g2);
+
+        drawMoneyHUD(g2);
+    }
+
+    // Gambar uang player di pojok kiri atas layar
+    private void drawMoneyHUD(Graphics2D g2) {
+        String moneyText = "$ " + playerMoney;
+
+        g2.setFont(buildingInfoBodyFont != null ? buildingInfoBodyFont.deriveFont(Font.BOLD, 17f) : new Font("Dialog", Font.BOLD, 17));
+
+        int padding = 10;
+        int textWidth = g2.getFontMetrics().stringWidth(moneyText);
+        int boxW = textWidth + padding * 2;
+        int boxH = 28;
+        int boxX = 8;
+        int boxY = 8;
+
+        g2.setColor(new Color(0, 0, 0, 150));
+        g2.fillRoundRect(boxX, boxY, boxW, boxH, 8, 8);
+        g2.setColor(new Color(255, 220, 60));
+        g2.drawString(moneyText, boxX + padding, boxY + boxH - 8);
+
+        // Kalau sedang dalam build mode dan bangunan dipilih, tampilkan harga bangunan
+        BuildingType selected = toolbar.getSelectedBuilding();
+        if (showGrid && selected != null) {
+            String priceText = "Cost: " + selected.getPrice();
+            boolean canAfford = playerMoney >= selected.getPrice();
+            int pw = g2.getFontMetrics().stringWidth(priceText);
+            int pBoxX = 8;
+            int pBoxY = boxY + boxH + 4;
+            int pBoxW = pw + padding * 2;
+
+            g2.setColor(new Color(0, 0, 0, 150));
+            g2.fillRoundRect(pBoxX, pBoxY, pBoxW, boxH, 8, 8);
+            g2.setColor(canAfford ? new Color(120, 255, 120) : new Color(255, 80, 80));
+            g2.drawString(priceText, pBoxX + padding, pBoxY + boxH - 8);
+        }
     }
 
     public void saveGame() { // save game
         Player_SaveFile.saveWorldMap(worldMap);
         Player_SaveFile.saveBuildingsMap(buildingDataMap);
+        Player_SaveFile.savePlayerData(playerMoney);
     }
 }

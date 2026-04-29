@@ -41,6 +41,11 @@ public class Player_SaveFile {
                 "VALUES (1, '')"
             );
 
+            stmt.execute( // insert default player row with starting money
+                "INSERT OR IGNORE INTO player_save (id, money) " +
+                "VALUES (1, 2500)"
+            );
+
         } catch (SQLException e) {
             System.out.println("Error creating database: " + e.getMessage());
         }
@@ -60,7 +65,20 @@ public class Player_SaveFile {
             System.out.println("Error loading player data: " + e.getMessage());
         }
 
-        return 100; // fallback default
+        return 2500; // fallback default
+    }
+
+    public static void savePlayerData(int money) { // simpan data player ke database
+        try (Connection conn = DriverManager.getConnection(DB_URL);
+             PreparedStatement pstmt = conn.prepareStatement(
+                 "INSERT OR REPLACE INTO player_save (id, money) VALUES (1, ?)")) {
+
+            pstmt.setInt(1, money);
+            pstmt.executeUpdate();
+
+        } catch (SQLException e) {
+            System.out.println("Error saving player data: " + e.getMessage());
+        }
     }
 
     public static void saveWorldMap(int[][] worldMap) {
