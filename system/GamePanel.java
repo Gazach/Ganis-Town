@@ -158,7 +158,7 @@ public class GamePanel extends JPanel implements Runnable{
 		g2.setColor(Color.black);
 		g2.fillRect(0, 0, panelWidth, panelHeight);
 
-		// gambar game ke gameBuffer dulu, baru nanti di draw ke panelnya, biar gak aneh pas di scale, nanti gambar game nya yang di scale bukan panelnya, jadi gak pecah
+		// Reuse the pre-allocated buffer; clear it first so stale pixels don't bleed through
 		Graphics2D bg = gameBuffer.createGraphics();
 		bg.setColor(Color.black);
 		bg.fillRect(0, 0, besarLayar, tinggiLayar);

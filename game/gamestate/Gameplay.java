@@ -67,6 +67,13 @@ public class Gameplay {
     private dayCycle dayTime = new dayCycle();
     private worldTemperature temperature = new worldTemperature();
 
+    // cached values to avoid per-frame recalculation
+    private int cachedTotalIncome = 0;
+    private BufferedImage buildingGlowImage;
+    private Font hudFont;
+    private Font detailTitleFontCached;
+    private Font detailBodyFontCached;
+
     // konstanta untuk layout panel info detail bangunan, untuk memudahkan penyesuaian tampilan
     private static final int BUILDING_INFO_PANEL_TOP_BOTTOM_MARGIN = 40;
     private static final int BUILDING_INFO_PANEL_RIGHT_MARGIN = 0;
@@ -94,6 +101,7 @@ public class Gameplay {
         hudPanelSkin = new panel("/asset/Panel/butmore");
         loadBuildingInfoFonts();
         loadCoinImage();
+        buildGlowImage();
     }
 
     private void cacheMaxBuildingDimensions() {
@@ -121,6 +129,23 @@ public class Gameplay {
         } catch (IOException e) {
             System.out.println("Failed to load coin image: " + e.getMessage());
         }
+    }
+
+    // Pre-render a single 128x128 glow sprite used for all buildings at runtime
+    private void buildGlowImage() {
+        int size = 128;
+        buildingGlowImage = new BufferedImage(size, size, BufferedImage.TYPE_INT_ARGB);
+        Graphics2D bg = buildingGlowImage.createGraphics();
+        bg.setRenderingHint(java.awt.RenderingHints.KEY_ANTIALIASING, java.awt.RenderingHints.VALUE_ANTIALIAS_ON);
+        float half = size / 2f;
+        RadialGradientPaint p = new RadialGradientPaint(
+            new java.awt.geom.Point2D.Float(half, half), half,
+            new float[]{0f, 1f},
+            new Color[]{new Color(255, 200, 80, 255), new Color(255, 160, 30, 0)}
+        );
+        bg.setPaint(p);
+        bg.fillOval(0, 0, size, size);
+        bg.dispose();
     }
 
     // Method untuk generate world map baru dengan Perlin noise, dipanggil saat start new game atau load game tanpa save file
@@ -154,6 +179,7 @@ public class Gameplay {
         lastIncomeTime = System.currentTimeMillis();
         dayTime.setHour(6.0f);
         temperature = new worldTemperature();
+        cachedTotalIncome = 0;
         resetBuildModeState();
     }
 
@@ -284,6 +310,7 @@ public class Gameplay {
         }
 
         rebuildBuildingOccupancyMap();
+        recalcIncomeCache();
     }
 
     // Method untuk save world map ke save file, dipanggil saat player save game atau auto-save
@@ -311,6 +338,7 @@ public class Gameplay {
             buildingDataMap[gridX][gridY] = instance;
             markBuildingOccupied(gridX, gridY, building, true);
             playerMoney -= building.getPrice();
+            cachedTotalIncome += building.getIncomePerSecond();
             saveGame();
         }
     }
@@ -580,26 +608,18 @@ public class Gameplay {
         }
     }
 
-    /** Draws a warm radial glow around a building to simulate lit windows at night. */
+    /** Draws a warm radial glow around a building using a pre-rendered image (cheap drawImage instead of RadialGradientPaint). */
     private void drawBuildingGlow(Graphics2D g2, int screenX, int screenY, int drawWidth, int drawHeight, float darkness) {
-        float cx = screenX + drawWidth / 2f;
-        float cy = screenY + drawHeight / 2f;
-        // Glow radius extends ~0.96x beyond the building footprint
+        if (buildingGlowImage == null) return;
         float radius = Math.max(drawWidth, drawHeight) * 0.96f;
-
-        int maxAlpha = (int)(darkness * 120); // scales 0–120 with night darkness
-        Color glowCenter = new Color(255, 200, 80, maxAlpha);
-        Color glowEdge   = new Color(255, 160, 30, 0);
-
-        java.awt.geom.Point2D center = new java.awt.geom.Point2D.Float(cx, cy);
-        float[] fractions = {0f, 1f};
-        Color[] colors = {glowCenter, glowEdge};
-
-        RadialGradientPaint paint = new RadialGradientPaint(center, radius, fractions, colors);
-        java.awt.Paint oldPaint = g2.getPaint();
-        g2.setPaint(paint);
-        g2.fillOval((int)(cx - radius), (int)(cy - radius), (int)(radius * 2), (int)(radius * 2));
-        g2.setPaint(oldPaint);
+        int glowDiam = (int)(radius * 2);
+        int glowX = screenX + drawWidth  / 2 - (int) radius;
+        int glowY = screenY + drawHeight / 2 - (int) radius;
+        float alpha = Math.min(darkness * (120f / 255f), 1f);
+        java.awt.Composite old = g2.getComposite();
+        g2.setComposite(java.awt.AlphaComposite.getInstance(java.awt.AlphaComposite.SRC_OVER, alpha));
+        g2.drawImage(buildingGlowImage, glowX, glowY, glowDiam, glowDiam, null);
+        g2.setComposite(old);
     }
 
     // gambar preview bangunan saat player hover dengan building yang dipilih, warna preview berubah jadi merah kalau ga bisa ditempatin di situ
@@ -675,10 +695,7 @@ public class Gameplay {
         g2.setStroke(oldStroke);
 
         g2.setColor(Color.WHITE);
-        Font detailTitleFont = buildingInfoTitleFont != null
-            ? buildingInfoTitleFont.deriveFont(buildingInfoTitleFont.getSize2D() + 2f)
-            : new Font("Dialog", Font.BOLD, 21);
-        g2.setFont(detailTitleFont);
+        g2.setFont(detailTitleFontCached != null ? detailTitleFontCached : new Font("Dialog", Font.BOLD, 21));
         int textX = titleX + 6;
         int titleTextY = titleY + BUILDING_TITLE_INPUT_OFFSET_Y + 21;
         String titleText = isEditingBuildingTitle ? buildingTitleDraft : selectedBuildingInfo.getName();
@@ -703,10 +720,7 @@ public class Gameplay {
 
         g2.setClip(oldClip);
 
-        Font detailBodyFont = buildingInfoBodyFont != null
-            ? buildingInfoBodyFont.deriveFont(buildingInfoBodyFont.getSize2D() + 2f)
-            : new Font("Dialog", Font.BOLD, 17);
-        g2.setFont(detailBodyFont);
+        g2.setFont(detailBodyFontCached != null ? detailBodyFontCached : new Font("Dialog", Font.BOLD, 17));
         int bodyY = titleY + BUILDING_TITLE_INPUT_OFFSET_Y + BUILDING_TITLE_INPUT_HEIGHT + 28;
         drawStrokedText(
             g2,
@@ -920,14 +934,19 @@ public class Gameplay {
             if (base != null) {
                 buildingInfoTitleFont = base.deriveFont(Font.PLAIN, 19f);
                 buildingInfoBodyFont = base.deriveFont(Font.BOLD, 15f);
-                return;
+            } else {
+                buildingInfoTitleFont = fallbackTitle;
+                buildingInfoBodyFont = fallbackBody;
             }
         } catch (IOException | FontFormatException e) {
             System.out.println("Failed to load custom UI font: " + e.getMessage());
+            buildingInfoTitleFont = fallbackTitle;
+            buildingInfoBodyFont = fallbackBody;
         }
-
-        buildingInfoTitleFont = fallbackTitle;
-        buildingInfoBodyFont = fallbackBody;
+        // Pre-derive all fonts used every frame so deriveFont() is never called at render time
+        hudFont = buildingInfoBodyFont.deriveFont(Font.BOLD, 17f);
+        detailTitleFontCached = buildingInfoTitleFont.deriveFont(buildingInfoTitleFont.getSize2D() + 2f);
+        detailBodyFontCached  = buildingInfoBodyFont.deriveFont(buildingInfoBodyFont.getSize2D() + 2f);
     }
 
     // Method untuk load font dari resource path, mencoba dari classpath dulu, kalau gagal coba dari file system, dipakai untuk load font khusus UI detail bangunan
@@ -976,6 +995,10 @@ public class Gameplay {
 
         drawPlayerHUD(g2);
     }
+    private void recalcIncomeCache() {
+        cachedTotalIncome = getTotalIncomePerSecond();
+    }
+
     // Method untuk menghitung total income per detik dari semua bangunan yang ada, dipakai untuk menampilkan income di UI dan kalkulasi uang player
     private int getTotalIncomePerSecond() {
         int total = 0;
@@ -992,8 +1015,7 @@ public class Gameplay {
 
     // Gambar uang player di pojok kiri atas layar
     private void drawPlayerHUD(Graphics2D g2) {
-        Font hudFont = buildingInfoBodyFont != null ? buildingInfoBodyFont.deriveFont(Font.BOLD, 17f) : new Font("Dialog", Font.BOLD, 17);
-        g2.setFont(hudFont);
+        g2.setFont(hudFont != null ? hudFont : new Font("Dialog", Font.BOLD, 17));
 
         int coinSize = 20;
         int gap = 6; // gap between coin icon and text
@@ -1006,8 +1028,7 @@ public class Gameplay {
         int boxY = 8;
 
         String moneyText = formatMoney(playerMoney);
-        int totalIncome = getTotalIncomePerSecond();
-        String incomeText = totalIncome > 0 ? "  +" + formatMoney(totalIncome) + "/s" : "";
+        String incomeText = cachedTotalIncome > 0 ? "  +" + formatMoney(cachedTotalIncome) + "/s" : "";
         int textWidth = g2.getFontMetrics().stringWidth(moneyText);
         int incomeWidth = g2.getFontMetrics().stringWidth(incomeText);
         int iconSlot = (coinImage != null) ? coinSize + gap : 0;
