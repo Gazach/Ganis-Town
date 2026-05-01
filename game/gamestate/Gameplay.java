@@ -8,6 +8,8 @@ import java.awt.FontFormatException;
 import java.awt.BasicStroke;
 import java.awt.Stroke;
 import java.awt.RadialGradientPaint;
+import java.awt.font.TextLayout;
+import java.awt.geom.AffineTransform;
 import java.awt.image.BufferedImage;
 import java.io.File;
 import java.io.IOException;
@@ -649,7 +651,10 @@ public class Gameplay {
         g2.setStroke(oldStroke);
 
         g2.setColor(Color.WHITE);
-        g2.setFont(buildingInfoTitleFont);
+        Font detailTitleFont = buildingInfoTitleFont != null
+            ? buildingInfoTitleFont.deriveFont(buildingInfoTitleFont.getSize2D() + 2f)
+            : new Font("Dialog", Font.BOLD, 21);
+        g2.setFont(detailTitleFont);
         int textX = titleX + 6;
         int titleTextY = titleY + BUILDING_TITLE_INPUT_OFFSET_Y + 21;
         String titleText = isEditingBuildingTitle ? buildingTitleDraft : selectedBuildingInfo.getName();
@@ -665,23 +670,47 @@ public class Gameplay {
             drawTextX = textX + availableTextWidth - textWidth;
         }
 
-        g2.drawString(titleText, drawTextX, titleTextY);
+        drawStrokedText(g2, titleText, drawTextX, titleTextY, Color.WHITE, new Color(8, 8, 8, 220), 1.5f);
 
         if (isEditingBuildingTitle) {
-            g2.drawString("_", drawTextX + g2.getFontMetrics().stringWidth(titleText), titleTextY);
+            int cursorX = drawTextX + g2.getFontMetrics().stringWidth(titleText);
+            drawStrokedText(g2, "_", cursorX, titleTextY, Color.WHITE, new Color(8, 8, 8, 220), 1.5f);
         }
 
         g2.setClip(oldClip);
 
-        g2.setFont(buildingInfoBodyFont);
+        Font detailBodyFont = buildingInfoBodyFont != null
+            ? buildingInfoBodyFont.deriveFont(buildingInfoBodyFont.getSize2D() + 2f)
+            : new Font("Dialog", Font.BOLD, 17);
+        g2.setFont(detailBodyFont);
         int bodyY = titleY + BUILDING_TITLE_INPUT_OFFSET_Y + BUILDING_TITLE_INPUT_HEIGHT + 28;
-        g2.drawString("Type: " + selectedBuildingInfo.getType().name().toLowerCase().replace('_', ' '), textX, bodyY);
-        g2.drawString(
+        drawStrokedText(
+            g2,
+            "Type: " + selectedBuildingInfo.getType().name().toLowerCase().replace('_', ' '),
+            textX,
+            bodyY,
+            Color.WHITE,
+            new Color(8, 8, 8, 220),
+            1.5f
+        );
+        drawStrokedText(
+            g2,
             "Size: " + selectedBuildingInfo.getType().getWidth() + "x" + selectedBuildingInfo.getType().getHeight(),
             textX,
-            bodyY + 18
+            bodyY + 18,
+            Color.WHITE,
+            new Color(8, 8, 8, 220),
+            1.5f
         );
-        g2.drawString("Income: +" + selectedBuildingInfo.getType().getIncomePerSecond() + "/sec", textX, bodyY + 36);
+        drawStrokedText(
+            g2,
+            "Income: +" + selectedBuildingInfo.getType().getIncomePerSecond() + "/sec",
+            textX,
+            bodyY + 36,
+            Color.WHITE,
+            new Color(8, 8, 8, 220),
+            1.5f
+        );
     }
 
     // Method untuk handle input saat sedang edit nama bangunan, menangkap karakter yang diketik, backspace, dan enter untuk save
@@ -772,6 +801,46 @@ public class Gameplay {
             && mouseX <= titleX + titleWidth
             && mouseY >= titleY
             && mouseY <= titleY + titleHeight;
+    }
+
+    // gambar teks dengan outline stroke untuk meningkatkan keterbacaan di atas background yang sibuk, dipakai untuk nama dan info detail bangunan di panel detail
+    // format uang dengan satuan yang lebih besar untuk jumlah besar, dipakai untuk menampilkan uang player di UI
+    private String formatMoney(long amount) {
+        if (amount >= 1_000_000_000_000_000L) {
+            return String.format("%.1fqua", amount / 1_000_000_000_000_000.0);
+        } else if (amount >= 1_000_000_000_000L) {
+            return String.format("%.1ftri", amount / 1_000_000_000_000.0);
+        } else if (amount >= 1_000_000_000L) {
+            return String.format("%.1fbil", amount / 1_000_000_000.0);
+        } else if (amount >= 1_000_000L) {
+            return String.format("%.1fmil", amount / 1_000_000.0);
+        } else if (amount >= 1_000L) {
+            return String.format("%.1fk", amount / 1_000.0);
+        } else {
+            return String.valueOf(amount);
+        }
+    }
+ // Method untuk menggambar teks dengan outline stroke untuk meningkatkan keterbacaan di atas background yang sibuk, dipakai untuk nama dan info detail bangunan di panel detail
+    private void drawStrokedText(Graphics2D g2, String text, int x, int y, Color fillColor, Color strokeColor, float strokeWidth) {
+        if (text == null || text.isEmpty()) {
+            return;
+        }
+
+        TextLayout layout = new TextLayout(text, g2.getFont(), g2.getFontRenderContext());
+        java.awt.Shape outline = layout.getOutline(AffineTransform.getTranslateInstance(x, y));
+
+        Color oldColor = g2.getColor();
+        Stroke oldStroke = g2.getStroke();
+
+        g2.setColor(strokeColor);
+        g2.setStroke(new BasicStroke(strokeWidth, BasicStroke.CAP_ROUND, BasicStroke.JOIN_ROUND));
+        g2.draw(outline);
+
+        g2.setColor(fillColor);
+        g2.fill(outline);
+
+        g2.setColor(oldColor);
+        g2.setStroke(oldStroke);
     }
 
     // Method untuk mencari apakah ada bangunan di koordinat dunia tertentu, dipakai untuk interaksi klik bangunan dan info detail
@@ -897,7 +966,7 @@ public class Gameplay {
         int boxX = 8;
         int boxY = 8;
 
-        String moneyText = String.valueOf(playerMoney);
+        String moneyText = formatMoney(playerMoney);
         int textWidth = g2.getFontMetrics().stringWidth(moneyText);
         int iconSlot = (coinImage != null) ? coinSize + gap : 0;
         int boxW = iconSlot + textWidth + padding * 2;
@@ -912,13 +981,20 @@ public class Gameplay {
             contentX += coinSize + gap;
         }
 
-        g2.setColor(new Color(255, 220, 60));
-        g2.drawString(moneyText, contentX, boxY + boxH - 8);
+        drawStrokedText(
+            g2,
+            moneyText,
+            contentX,
+            boxY + boxH - 8,
+            new Color(255, 220, 60),
+            new Color(0, 0, 0, 220),
+            1.5f
+        );
 
         // Kalau sedang dalam build mode dan bangunan dipilih, tampilkan harga bangunan
         BuildingType selected = toolbar.getSelectedBuilding();
         if (showGrid && selected != null) {
-            String priceText = "" + selected.getPrice();
+            String priceText = formatMoney(selected.getPrice());
             boolean canAfford = playerMoney >= selected.getPrice();
             int pw = g2.getFontMetrics().stringWidth(priceText);
             int pIconSlot = (coinImage != null) ? coinSize + gap : 0;
@@ -936,11 +1012,19 @@ public class Gameplay {
                 pContentX += coinSize + gap;
             }
 
-            g2.setColor(canAfford ? new Color(120, 255, 120) : new Color(255, 80, 80));
-            g2.drawString(priceText, pContentX, pBoxY + boxH - 8);
+            drawStrokedText(
+                g2,
+                priceText,
+                pContentX,
+                pBoxY + boxH - 8,
+                canAfford ? new Color(120, 255, 120) : new Color(255, 80, 80),
+                new Color(0, 0, 0, 220),
+                1.5f
+            );
         }
     }
 
+    // Gambar waktu dan suhu di tengah atas layar, warna teks berubah berdasarkan periode waktu (lebih cerah saat siang, lebih gelap saat malam)
     private void drawTimeHUD(Graphics2D g2) {
         Font hudFont = buildingInfoBodyFont != null ? buildingInfoBodyFont.deriveFont(Font.BOLD, 15f) : new Font("Dialog", Font.BOLD, 15);
         g2.setFont(hudFont);
@@ -962,8 +1046,15 @@ public class Gameplay {
         int r = (int)(255 * (1f - darkness * 0.4f));
         int gr = (int)(220 + darkness * 20f);
         int b = (int)(150 + darkness * 105f);
-        g2.setColor(new Color(Math.min(r,255), Math.min(gr,255), Math.min(b,255)));
-        g2.drawString(timeText, boxX + padding, boxY + boxH - 6);
+        drawStrokedText(
+            g2,
+            timeText,
+            boxX + padding,
+            boxY + boxH - 6,
+            new Color(Math.min(r,255), Math.min(gr,255), Math.min(b,255)),
+            new Color(0, 0, 0, 220),
+            1.5f
+        );
     }
 
     public void saveGame() { // save game
