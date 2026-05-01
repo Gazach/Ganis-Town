@@ -15,7 +15,10 @@ import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
 import javax.imageio.ImageIO;
+import java.util.ArrayList;
 import java.util.HashSet;
+import java.util.List;
+import java.util.Random;
 import java.util.Set;
 
 import game.Toolbar;
@@ -64,11 +67,16 @@ public class Gameplay {
     private int playerMoney = 2500;
     private long lastIncomeTime = System.currentTimeMillis();
     private BufferedImage coinImage;
+    private BufferedImage personImage;
     private dayCycle dayTime = new dayCycle();
     private worldTemperature temperature = new worldTemperature();
 
     // cached values to avoid per-frame recalculation
-    private int cachedTotalIncome = 0;
+    private double cachedTotalIncome = 0.0;
+    private int cachedTotalPopulation = 0;
+    private double incomeAccumulator = 0.0;
+    private static final Random rng = new Random();
+    private int nextPlacementOrder = 0;
     private BufferedImage buildingGlowImage;
     private Font hudFont;
     private Font detailTitleFontCached;
@@ -101,6 +109,7 @@ public class Gameplay {
         hudPanelSkin = new panel("/asset/Panel/butmore");
         loadBuildingInfoFonts();
         loadCoinImage();
+        loadPersonImage();
         buildGlowImage();
     }
 
@@ -128,6 +137,22 @@ public class Gameplay {
             }
         } catch (IOException e) {
             System.out.println("Failed to load coin image: " + e.getMessage());
+        }
+    }
+
+    private void loadPersonImage() {
+        try {
+            InputStream stream = getClass().getResourceAsStream("/asset/gameplayUI/person_icon.png");
+            if (stream != null) {
+                personImage = ImageIO.read(stream);
+                return;
+            }
+            File file = new File("asset/gameplayUI/person_icon.png");
+            if (file.exists()) {
+                personImage = ImageIO.read(file);
+            }
+        } catch (IOException e) {
+            System.out.println("Failed to load person image: " + e.getMessage());
         }
     }
 
@@ -175,11 +200,13 @@ public class Gameplay {
         generateWorld();
         gp.cameraWorldX = gp.worldWidth / 2;
         gp.cameraWorldY = gp.worldHeight / 2;
-        playerMoney = 2500;
+        playerMoney = 22500;
         lastIncomeTime = System.currentTimeMillis();
         dayTime.setHour(6.0f);
         temperature = new worldTemperature();
-        cachedTotalIncome = 0;
+        cachedTotalIncome = 0.0;
+        cachedTotalPopulation = 0;
+        incomeAccumulator = 0.0;
         resetBuildModeState();
     }
 
@@ -260,18 +287,13 @@ public class Gameplay {
         int seconds = (int) (elapsed / 1000);
         lastIncomeTime += seconds * 1000L;
 
-        int earned = 0;
-        for (int x = 0; x < gp.maxWorldCol; x++) {
-            for (int y = 0; y < gp.maxWorldRow; y++) {
-                BuildingType type = buildingsMap[x][y];
-                if (type != null) {
-                    earned += type.getIncomePerSecond() * seconds;
-                }
+        if (cachedTotalIncome > 0) {
+            incomeAccumulator += cachedTotalIncome * seconds;
+            int wholeEarned = (int) incomeAccumulator;
+            if (wholeEarned > 0) {
+                playerMoney += wholeEarned;
+                incomeAccumulator -= wholeEarned;
             }
-        }
-
-        if (earned > 0) {
-            playerMoney += earned;
         }
     }
     // Method untuk load world map dari save file, kalau ga ada save file, generate baru
@@ -310,6 +332,22 @@ public class Gameplay {
         }
 
         rebuildBuildingOccupancyMap();
+        // Compute nextPlacementOrder from loaded buildings (fallback assigns scan-order index)
+        int maxOrder = -1;
+        int fallbackIdx = 0;
+        for (int x = 0; x < gp.maxWorldCol; x++) {
+            for (int y = 0; y < gp.maxWorldRow; y++) {
+                BuildingInstance inst = buildingDataMap[x][y];
+                if (inst != null) {
+                    if (inst.getPlacementOrder() < 0) {
+                        inst.setPlacementOrder(fallbackIdx);
+                    }
+                    fallbackIdx++;
+                    maxOrder = Math.max(maxOrder, inst.getPlacementOrder());
+                }
+            }
+        }
+        nextPlacementOrder = maxOrder + 1;
         recalcIncomeCache();
     }
 
@@ -334,11 +372,18 @@ public class Gameplay {
 
         if (canPlaceBuildingAt(gridX, gridY, building)) {
             BuildingInstance instance = createBuildingInstance(building);
+            if (building.getCategory() == BuildingType.BuildingCategory.HOUSING) {
+                int min = building.getMinPeople();
+                int max = building.getMaxPeople();
+                int pop = (min == max) ? min : min + rng.nextInt(max - min + 1);
+                instance.setPopulation(pop);
+            }
+            instance.setPlacementOrder(nextPlacementOrder++);
             buildingsMap[gridX][gridY] = building;
             buildingDataMap[gridX][gridY] = instance;
             markBuildingOccupied(gridX, gridY, building, true);
             playerMoney -= building.getPrice();
-            cachedTotalIncome += building.getIncomePerSecond();
+            recalcIncomeCache();
             saveGame();
         }
     }
@@ -499,7 +544,7 @@ public class Gameplay {
                     }
                 }
 
-                buildingDataMap[x][y] = new BuildingInstance(instance.getType(), candidate);
+                buildingDataMap[x][y] = new BuildingInstance(instance.getType(), candidate, instance.getPopulation());
                 usedNames.add(candidate);
             }
         }
@@ -740,15 +785,77 @@ public class Gameplay {
             new Color(8, 8, 8, 220),
             1.5f
         );
-        drawStrokedText(
-            g2,
-            "Income: +" + selectedBuildingInfo.getType().getIncomePerSecond() + "/sec",
-            textX,
-            bodyY + 36,
-            Color.WHITE,
-            new Color(8, 8, 8, 220),
-            1.5f
-        );
+
+        BuildingType.BuildingCategory cat = selectedBuildingInfo.getType().getCategory();
+        if (cat == BuildingType.BuildingCategory.HOUSING) {
+            drawStrokedText(
+                g2,
+                "Population: " + selectedBuildingInfo.getPopulation(),
+                textX,
+                bodyY + 36,
+                new Color(80, 180, 255),
+                new Color(8, 8, 8, 220),
+                1.5f
+            );
+        } else {
+            BuildingType btype = selectedBuildingInfo.getType();
+            int maxWorkers = btype.getMaxWorkers();
+            int maxIncome  = btype.getIncomePerSecond();
+
+            // Collect and sort production buildings by placement order (same as recalcIncomeCache)
+            List<BuildingInstance> prodList = new ArrayList<>();
+            for (int x = 0; x < gp.maxWorldCol; x++) {
+                for (int y = 0; y < gp.maxWorldRow; y++) {
+                    BuildingInstance inst = buildingDataMap[x][y];
+                    if (inst != null && inst.getType().getCategory() == BuildingType.BuildingCategory.PRODUCTION) {
+                        prodList.add(inst);
+                    }
+                }
+            }
+            prodList.sort((a, b) -> Integer.compare(a.getPlacementOrder(), b.getPlacementOrder()));
+
+            int remainingPop = cachedTotalPopulation;
+            int effectiveWorkers = 0;
+            for (BuildingInstance inst : prodList) {
+                int workers = Math.min(remainingPop, inst.getType().getMaxWorkers());
+                remainingPop -= workers;
+                if (inst == selectedBuildingInfo) {
+                    effectiveWorkers = workers;
+                    break;
+                }
+            }
+
+            double localRatio = maxWorkers > 0 ? (double) effectiveWorkers / maxWorkers : 0.0;
+            double effectiveIncome = Math.floor(localRatio * maxIncome * 10.0) / 10.0;
+
+            drawStrokedText(
+                g2,
+                "Workers: " + effectiveWorkers + " / " + maxWorkers,
+                textX,
+                bodyY + 36,
+                new Color(255, 200, 100),
+                new Color(8, 8, 8, 220),
+                1.5f
+            );
+            drawStrokedText(
+                g2,
+                "Income: +" + formatIncome(effectiveIncome) + "/s",
+                textX,
+                bodyY + 54,
+                new Color(100, 230, 120),
+                new Color(8, 8, 8, 220),
+                1.5f
+            );
+            drawStrokedText(
+                g2,
+                "Max income: +" + maxIncome + "/s",
+                textX,
+                bodyY + 72,
+                new Color(150, 200, 150),
+                new Color(8, 8, 8, 220),
+                1.5f
+            );
+        }
     }
 
     // Method untuk handle input saat sedang edit nama bangunan, menangkap karakter yang diketik, backspace, dan enter untuk save
@@ -858,7 +965,15 @@ public class Gameplay {
             return String.valueOf(amount);
         }
     }
- // Method untuk menggambar teks dengan outline stroke untuk meningkatkan keterbacaan di atas background yang sibuk, dipakai untuk nama dan info detail bangunan di panel detail
+
+    private String formatIncome(double amount) {
+        if (amount >= 1_000_000_000.0) return String.format("%.1fbil", amount / 1_000_000_000.0);
+        if (amount >= 1_000_000.0)     return String.format("%.1fmil", amount / 1_000_000.0);
+        if (amount >= 1_000.0)         return String.format("%.1fk",   amount / 1_000.0);
+        // Show 1 decimal, strip trailing zero (e.g. 7.0 → "7", 7.5 → "7.5")
+        String s = String.format("%.1f", amount);
+        return s.endsWith(".0") ? s.substring(0, s.length() - 2) : s;
+    }
     private void drawStrokedText(Graphics2D g2, String text, int x, int y, Color fillColor, Color strokeColor, float strokeWidth) {
         if (text == null || text.isEmpty()) {
             return;
@@ -996,17 +1111,41 @@ public class Gameplay {
         drawPlayerHUD(g2);
     }
     private void recalcIncomeCache() {
-        cachedTotalIncome = getTotalIncomePerSecond();
+        cachedTotalPopulation = getTotalPopulation();
+
+        // Collect production buildings and sort by placement order so workers
+        // prioritize the first-placed building.
+        List<BuildingInstance> prodList = new ArrayList<>();
+        for (int x = 0; x < gp.maxWorldCol; x++) {
+            for (int y = 0; y < gp.maxWorldRow; y++) {
+                BuildingInstance inst = buildingDataMap[x][y];
+                if (inst != null && inst.getType().getCategory() == BuildingType.BuildingCategory.PRODUCTION) {
+                    prodList.add(inst);
+                }
+            }
+        }
+        prodList.sort((a, b) -> Integer.compare(a.getPlacementOrder(), b.getPlacementOrder()));
+
+        int remainingPop = cachedTotalPopulation;
+        double effectiveIncome = 0.0;
+        for (BuildingInstance inst : prodList) {
+            int maxW = inst.getType().getMaxWorkers();
+            int workers = Math.min(remainingPop, maxW);
+            remainingPop -= workers;
+            double localRatio = maxW > 0 ? (double) workers / maxW : 0.0;
+            effectiveIncome += Math.floor(localRatio * inst.getType().getIncomePerSecond() * 10.0) / 10.0;
+        }
+        cachedTotalIncome = effectiveIncome;
     }
 
-    // Method untuk menghitung total income per detik dari semua bangunan yang ada, dipakai untuk menampilkan income di UI dan kalkulasi uang player
-    private int getTotalIncomePerSecond() {
+    // Method untuk menghitung total populasi dari semua bangunan HOUSING yang sudah ditempatkan
+    private int getTotalPopulation() {
         int total = 0;
         for (int x = 0; x < gp.maxWorldCol; x++) {
             for (int y = 0; y < gp.maxWorldRow; y++) {
-                BuildingType type = buildingsMap[x][y];
-                if (type != null) {
-                    total += type.getIncomePerSecond();
+                BuildingInstance inst = buildingDataMap[x][y];
+                if (inst != null) {
+                    total += inst.getPopulation();
                 }
             }
         }
@@ -1028,20 +1167,25 @@ public class Gameplay {
         int boxY = 8;
 
         String moneyText = formatMoney(playerMoney);
-        String incomeText = cachedTotalIncome > 0 ? "  +" + formatMoney(cachedTotalIncome) + "/s" : "";
-        int textWidth = g2.getFontMetrics().stringWidth(moneyText);
-        int incomeWidth = g2.getFontMetrics().stringWidth(incomeText);
-        int iconSlot = (coinImage != null) ? coinSize + gap : 0;
-
-        // Warna teks untuk waktu dan temperatur berubah berdasarkan darkness, semakin gelap semakin mendekati warna oranye, semakin terang mendekati warna putih
-        float darkness = dayTime.getDarkness();
+        String incomeText = cachedTotalIncome > 0 ? "  +" + formatIncome(cachedTotalIncome) + "/s" : "";
+        String popDivider = "  |  ";
+        String populationText = String.valueOf(cachedTotalPopulation);
         String timeDivider = "  |  ";
         String timeText = dayTime.getTimeLabel() + "  " + dayTime.getPeriodName()
             + "   " + temperature.getTempLabel(dayTime.getHour());
+        int textWidth       = g2.getFontMetrics().stringWidth(moneyText);
+        int incomeWidth     = g2.getFontMetrics().stringWidth(incomeText);
+        int popDividerWidth = g2.getFontMetrics().stringWidth(popDivider);
+        int populationWidth = g2.getFontMetrics().stringWidth(populationText);
         int timeDividerWidth = g2.getFontMetrics().stringWidth(timeDivider);
-        int timeTextWidth = g2.getFontMetrics().stringWidth(timeText);
+        int timeTextWidth   = g2.getFontMetrics().stringWidth(timeText);
+        int iconSlot = (coinImage != null) ? coinSize + gap : 0;
+        int personIconSlot = (personImage != null) ? coinSize + gap : 0;
 
-        int boxW = iconSlot + textWidth + incomeWidth + timeDividerWidth + timeTextWidth + innerPadX * 2;
+        // Warna teks untuk waktu dan temperatur berubah berdasarkan darkness, semakin gelap semakin mendekati warna oranye, semakin terang mendekati warna putih
+        float darkness = dayTime.getDarkness();
+
+        int boxW = iconSlot + textWidth + incomeWidth + popDividerWidth + personIconSlot + populationWidth + timeDividerWidth + timeTextWidth + innerPadX * 2;
 
         hudPanelSkin.draw(g2, boxX, boxY, boxW, boxH);
 
@@ -1068,11 +1212,23 @@ public class Gameplay {
             );
         }
 
+        int popDividerX = contentX + textWidth + incomeWidth;
+        drawStrokedText(g2, popDivider, popDividerX, textBaseY,
+            new Color(180, 180, 180), new Color(0, 0, 0, 220), 1.5f);
+        int personIconX = popDividerX + popDividerWidth;
+        if (personImage != null) {
+            int personIconY = boxY + innerPadY + (contentH - coinSize) / 2;
+            g2.drawImage(personImage, personIconX, personIconY, coinSize, coinSize, null);
+            personIconX += coinSize + gap;
+        }
+        drawStrokedText(g2, populationText, personIconX, textBaseY,
+            new Color(80, 180, 255), new Color(0, 0, 0, 220), 1.5f);
+
         // waktu dan temperatur di pojok kanan atas, warnanya berubah berdasarkan darkness, semakin gelap semakin mendekati warna oranye, semakin terang mendekati warna putih
         int tr = (int)(255 * (1f - darkness * 0.4f));
         int tg = (int)(220 + darkness * 20f);
         int tb = (int)(150 + darkness * 105f);
-        int dividerX = boxX + innerPadX + iconSlot + textWidth + incomeWidth;
+        int dividerX = popDividerX + popDividerWidth + personIconSlot + populationWidth;
         drawStrokedText(g2, timeDivider, dividerX, textBaseY,
             new Color(180, 180, 180), new Color(0, 0, 0, 220), 1.5f);
         drawStrokedText(g2, timeText, dividerX + timeDividerWidth, textBaseY,

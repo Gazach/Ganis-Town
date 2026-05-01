@@ -46,7 +46,7 @@ public class Player_SaveFile {
 
             stmt.execute( // insert default player row with starting money
                 "INSERT OR IGNORE INTO player_save (id, money) " +
-                "VALUES (1, 2500)"
+                "VALUES (1, 22500)"
             );
 
         } catch (SQLException e) {
@@ -286,7 +286,7 @@ public class Player_SaveFile {
 
         String name = building.getName().length() > 100 ? building.getName().substring(0, 100) : building.getName();
         String encodedName = Base64.getEncoder().encodeToString(name.getBytes(StandardCharsets.UTF_8));
-        return building.getType().ordinal() + ":" + encodedName;
+        return building.getType().ordinal() + ":" + encodedName + ":" + building.getPopulation() + ":" + building.getPlacementOrder();
     }
 
     private static BuildingInstance decodeBuildingCell(String cell) {
@@ -307,14 +307,16 @@ public class Player_SaveFile {
                 return new BuildingInstance(type, generatedName);
             }
 
-            String[] parts = cell.split(":", 2);
+            String[] parts = cell.split(":", 4);
             int ordinal = Integer.parseInt(parts[0]);
             if (ordinal < 0 || ordinal >= BuildingType.values().length) {
                 return null;
             }
 
             String name = new String(Base64.getDecoder().decode(parts[1]), StandardCharsets.UTF_8);
-            return new BuildingInstance(BuildingType.values()[ordinal], name);
+            int population = parts.length >= 3 ? Integer.parseInt(parts[2]) : 0;
+            int placementOrder = parts.length >= 4 ? Integer.parseInt(parts[3]) : -1;
+            return new BuildingInstance(BuildingType.values()[ordinal], name, population, placementOrder);
         } catch (IllegalArgumentException e) {
             return null;
         }
