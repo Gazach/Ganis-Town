@@ -13,10 +13,11 @@ public class Player_SaveFile {
         try (Connection conn = DriverManager.getConnection(DB_URL);
              Statement stmt = conn.createStatement()) {
 
-            stmt.execute( //buat tabel untuk menyimpan data player seperti uang, level, dll. Saat ini hanya menyimpan uang saja
+            stmt.execute( //buat tabel untuk menyimpan data player seperti uang, level, dll.
                 "CREATE TABLE IF NOT EXISTS player_save (" +
                 "id INTEGER PRIMARY KEY," +
-                "money INTEGER)"
+                "money INTEGER," +
+                "day_time REAL DEFAULT 6.0)"
             );
 
             stmt.execute( // tabel untuk menyimpan data world map dalam format string yang bisa di-parse kembali saat load
@@ -49,6 +50,14 @@ public class Player_SaveFile {
         } catch (SQLException e) {
             System.out.println("Error creating database: " + e.getMessage());
         }
+
+        // Migrate existing databases that were created before the day_time column was added
+        try (Connection conn = DriverManager.getConnection(DB_URL);
+             Statement stmt = conn.createStatement()) {
+            stmt.execute("ALTER TABLE player_save ADD COLUMN day_time REAL DEFAULT 6.0");
+        } catch (SQLException e) {
+            // Column already exists – safe to ignore
+        }
     }
 
     public static int loadPlayerData() { // load data player dari database
@@ -79,6 +88,36 @@ public class Player_SaveFile {
         } catch (SQLException e) {
             System.out.println("Error saving player data: " + e.getMessage());
         }
+    }
+
+    public static void saveDayTime(float hour) { // simpan waktu siang/malam ke database
+        try (Connection conn = DriverManager.getConnection(DB_URL);
+             PreparedStatement pstmt = conn.prepareStatement(
+                 "UPDATE player_save SET day_time = ? WHERE id = 1")) {
+
+            pstmt.setFloat(1, hour);
+            pstmt.executeUpdate();
+
+        } catch (SQLException e) {
+            System.out.println("Error saving day time: " + e.getMessage());
+        }
+    }
+
+    public static float loadDayTime() { // load waktu siang/malam dari database
+        try (Connection conn = DriverManager.getConnection(DB_URL);
+             Statement stmt = conn.createStatement();
+             ResultSet rs = stmt.executeQuery(
+                 "SELECT day_time FROM player_save WHERE id = 1")) {
+
+            if (rs.next()) {
+                return rs.getFloat("day_time");
+            }
+
+        } catch (SQLException e) {
+            System.out.println("Error loading day time: " + e.getMessage());
+        }
+
+        return 6.0f; // fallback: start at 6 AM
     }
 
     public static void saveWorldMap(int[][] worldMap) {

@@ -7,6 +7,7 @@ import java.awt.Font;
 import java.awt.FontFormatException;
 import java.awt.BasicStroke;
 import java.awt.Stroke;
+import java.awt.RadialGradientPaint;
 import java.awt.image.BufferedImage;
 import java.io.File;
 import java.io.IOException;
@@ -18,6 +19,7 @@ import java.util.Set;
 import game.Toolbar;
 import game.BuildingType;
 import game.BuildingInstance;
+import game.dayCycle;
 // load system
 import system.KeyHandler;
 import system.GamePanel;
@@ -56,6 +58,7 @@ public class Gameplay {
     private int playerMoney = 2500;
     private long lastIncomeTime = System.currentTimeMillis();
     private BufferedImage coinImage;
+    private dayCycle dayTime = new dayCycle();
 
     // konstanta untuk layout panel info detail bangunan, untuk memudahkan penyesuaian tampilan
     private static final int BUILDING_INFO_PANEL_TOP_BOTTOM_MARGIN = 40;
@@ -129,6 +132,7 @@ public class Gameplay {
         gp.cameraWorldY = gp.worldHeight / 2;
         playerMoney = 2500;
         lastIncomeTime = System.currentTimeMillis();
+        dayTime.setHour(6.0f);
         resetBuildModeState();
     }
 
@@ -195,6 +199,7 @@ public class Gameplay {
         }
         
         toolbar.update(mouseH.mouseX, mouseH.mouseY);
+        dayTime.update();
         tickBuildingIncome();
     }
 
@@ -236,6 +241,7 @@ public class Gameplay {
         }
 
         playerMoney = Player_SaveFile.loadPlayerData();
+        dayTime.setHour(Player_SaveFile.loadDayTime());
         lastIncomeTime = System.currentTimeMillis();
 
         if (loadedBuildingsMap != null
@@ -497,6 +503,67 @@ public class Gameplay {
                 }
             }
         }
+    }
+
+    /** Draws warm radial glows for all on-screen buildings after the night overlay. */
+    private void drawBuildingGlows(Graphics2D g2) {
+        float darkness = dayTime.getDarkness();
+        if (darkness <= 0f) return;
+
+        int startX = (gp.cameraWorldX - gp.besarLayar / 2) / tileSize;
+        int startY = (gp.cameraWorldY - gp.tinggiLayar / 2) / tileSize;
+        int endX = startX + (gp.besarLayar / tileSize) + 2;
+        int endY = startY + (gp.tinggiLayar / tileSize) + 2;
+
+        startX = Math.max(0, startX);
+        startY = Math.max(0, startY);
+        endX = Math.min(gp.maxWorldCol - 1, endX);
+        endY = Math.min(gp.maxWorldRow - 1, endY);
+
+        for (int x = startX; x <= endX; x++) {
+            for (int y = startY; y <= endY; y++) {
+                BuildingType building = buildingsMap[x][y];
+                if (building == null) continue;
+
+                int screenX = x * tileSize - gp.cameraWorldX + gp.besarLayar / 2;
+                int screenY = y * tileSize - gp.cameraWorldY + gp.tinggiLayar / 2;
+                int drawWidth = tileSize * building.getWidth();
+                int drawHeight = tileSize * building.getHeight();
+
+                drawBuildingGlow(g2, screenX, screenY, drawWidth, drawHeight, darkness);
+
+                // Redraw the building sprite on top of its own glow so it stays crisp
+                BufferedImage image = toolbar.getBuildingImage(building);
+                if (image != null) {
+                    g2.drawImage(image, screenX, screenY, drawWidth, drawHeight, null);
+                } else {
+                    g2.setColor(new Color(190, 150, 90));
+                    g2.fillRect(screenX, screenY, drawWidth, drawHeight);
+                }
+            }
+        }
+    }
+
+    /** Draws a warm radial glow around a building to simulate lit windows at night. */
+    private void drawBuildingGlow(Graphics2D g2, int screenX, int screenY, int drawWidth, int drawHeight, float darkness) {
+        float cx = screenX + drawWidth / 2f;
+        float cy = screenY + drawHeight / 2f;
+        // Glow radius extends ~0.96x beyond the building footprint
+        float radius = Math.max(drawWidth, drawHeight) * 0.96f;
+
+        int maxAlpha = (int)(darkness * 120); // scales 0–120 with night darkness
+        Color glowCenter = new Color(255, 200, 80, maxAlpha);
+        Color glowEdge   = new Color(255, 160, 30, 0);
+
+        java.awt.geom.Point2D center = new java.awt.geom.Point2D.Float(cx, cy);
+        float[] fractions = {0f, 1f};
+        Color[] colors = {glowCenter, glowEdge};
+
+        RadialGradientPaint paint = new RadialGradientPaint(center, radius, fractions, colors);
+        java.awt.Paint oldPaint = g2.getPaint();
+        g2.setPaint(paint);
+        g2.fillOval((int)(cx - radius), (int)(cy - radius), (int)(radius * 2), (int)(radius * 2));
+        g2.setPaint(oldPaint);
     }
 
     // gambar preview bangunan saat player hover dengan building yang dipilih, warna preview berubah jadi merah kalau ga bisa ditempatin di situ
@@ -777,10 +844,22 @@ public class Gameplay {
         return Font.createFont(Font.TRUETYPE_FONT, file);
     }
 
+    private void drawDayNightOverlay(Graphics2D g2) {
+        java.awt.Color overlay = dayTime.getOverlayColor();
+        if (overlay.getAlpha() > 0) {
+            g2.setColor(overlay);
+            g2.fillRect(0, 0, screenWidth, screenHeight);
+        }
+    }
+
     public void drawGameplay(Graphics2D g2){
         gp.tileM.draw(g2); // gambar tile berdasarkan worldMap
 
         drawBuildings(g2); // gambar bangunan di atas terrain
+
+        drawDayNightOverlay(g2); // gambar overlay siang/malam
+
+        drawBuildingGlows(g2); // gambar glow bangunan di atas overlay malam
 
         drawGrid(g2); // gambar grid di atas tile
 
@@ -793,6 +872,7 @@ public class Gameplay {
         drawBuildingDetailUI(g2);
 
         drawMoneyHUD(g2);
+        drawTimeHUD(g2);
     }
 
     // Gambar uang player di pojok kiri atas layar
@@ -851,9 +931,34 @@ public class Gameplay {
         }
     }
 
+    private void drawTimeHUD(Graphics2D g2) {
+        Font hudFont = buildingInfoBodyFont != null ? buildingInfoBodyFont.deriveFont(Font.BOLD, 15f) : new Font("Dialog", Font.BOLD, 15);
+        g2.setFont(hudFont);
+
+        String timeText = dayTime.getTimeLabel() + "  " + dayTime.getPeriodName();
+        int padding = 8;
+        int boxH = 24;
+        int textW = g2.getFontMetrics().stringWidth(timeText);
+        int boxW = textW + padding * 2;
+        int boxX = (screenWidth - boxW) / 2;
+        int boxY = 8;
+
+        g2.setColor(new Color(0, 0, 0, 150));
+        g2.fillRoundRect(boxX, boxY, boxW, boxH, 8, 8);
+
+        // Text colour shifts by period
+        float darkness = dayTime.getDarkness();
+        int r = (int)(255 * (1f - darkness * 0.4f));
+        int gr = (int)(220 + darkness * 20f);
+        int b = (int)(150 + darkness * 105f);
+        g2.setColor(new Color(Math.min(r,255), Math.min(gr,255), Math.min(b,255)));
+        g2.drawString(timeText, boxX + padding, boxY + boxH - 6);
+    }
+
     public void saveGame() { // save game
         Player_SaveFile.saveWorldMap(worldMap);
         Player_SaveFile.saveBuildingsMap(buildingDataMap);
         Player_SaveFile.savePlayerData(playerMoney);
+        Player_SaveFile.saveDayTime(dayTime.getHour());
     }
 }
