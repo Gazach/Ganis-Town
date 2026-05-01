@@ -18,6 +18,7 @@ public class Toolbar {
     
     private BuildingType selectedBuilding = null;
     private panel toolbarPanel;
+    private tooltips_toolbar tooltip;
     
     int toolbarHeight = 80;
     int btnSize = 64;
@@ -25,6 +26,7 @@ public class Toolbar {
 
     public Toolbar() {
         toolbarPanel = new panel();
+        tooltip = new tooltips_toolbar();
         loadImages(); 
     }
 
@@ -89,6 +91,17 @@ public class Toolbar {
             int y = screenHeight - toolbarHeight + 8;
             
             button.drawButton(g2, btnNormal[i], btnHover[i], x, y, btnSize, btnSize, mouseX, mouseY);
+        }
+
+        // Draw tooltip for whichever button is currently hovered
+        BuildingType[] buildings = BuildingType.values();
+        for (int i = 0; i < buildings.length; i++) {
+            int x = btnPadding + i * (btnSize + btnPadding);
+            int y = screenHeight - toolbarHeight + 8;
+            if (button.isHovering(x, y, btnSize, btnSize, mouseX, mouseY)) {
+                tooltip.draw(g2, buildings[i], x + btnSize / 2, y, screenWidth);
+                break;
+            }
         }
     }
 
