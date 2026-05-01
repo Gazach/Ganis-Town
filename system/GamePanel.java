@@ -173,7 +173,12 @@ public class GamePanel extends JPanel implements Runnable{
 		// dispose graphics untuk gameBuffer setelah selesai menggambar
 		bg.dispose();
 
-		// Draw the buffer scaled to the panel
+		// Draw the buffer scaled to the panel — nearest-neighbour keeps pixel art crisp
+		// and prevents dark seam lines between tiles caused by bilinear interpolation.
+		g2.setRenderingHint(java.awt.RenderingHints.KEY_INTERPOLATION,
+			java.awt.RenderingHints.VALUE_INTERPOLATION_NEAREST_NEIGHBOR);
+		g2.setRenderingHint(java.awt.RenderingHints.KEY_RENDERING,
+			java.awt.RenderingHints.VALUE_RENDER_SPEED);
 		g2.drawImage(gameBuffer, xOffset, yOffset, drawWidth, drawHeight, null);
 
 		g2.dispose();

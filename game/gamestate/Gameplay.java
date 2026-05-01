@@ -50,6 +50,8 @@ public class Gameplay {
     public BuildingType[][] buildingsMap; // Layer for buildings on top of terrain
     public BuildingInstance[][] buildingDataMap;
     private boolean[][] buildingOccupiedMap;
+    private int maxBuildingWidthTiles = 1;
+    private int maxBuildingHeightTiles = 1;
     private boolean showGrid = false;
     private BuildingInstance selectedBuildingInfo;
     private boolean isEditingBuildingTitle = false;
@@ -86,9 +88,21 @@ public class Gameplay {
         buildingsMap = new BuildingType[gp.maxWorldCol][gp.maxWorldRow];
         buildingDataMap = new BuildingInstance[gp.maxWorldCol][gp.maxWorldRow];
         buildingOccupiedMap = new boolean[gp.maxWorldCol][gp.maxWorldRow];
+        cacheMaxBuildingDimensions();
         buildingInfoPanelSkin = new panel();
         loadBuildingInfoFonts();
         loadCoinImage();
+    }
+
+    private void cacheMaxBuildingDimensions() {
+        int maxWidth = 1;
+        int maxHeight = 1;
+        for (BuildingType type : BuildingType.values()) {
+            maxWidth = Math.max(maxWidth, type.getWidth());
+            maxHeight = Math.max(maxHeight, type.getHeight());
+        }
+        maxBuildingWidthTiles = maxWidth;
+        maxBuildingHeightTiles = maxHeight;
     }
 
     private void loadCoinImage() {
@@ -487,6 +501,10 @@ public class Gameplay {
         int endX = startX + (gp.besarLayar / tileSize) + 2;
         int endY = startY + (gp.tinggiLayar / tileSize) + 2;
 
+        // Expand start bounds so multi-tile buildings remain visible until fully out of view.
+        startX -= (maxBuildingWidthTiles - 1);
+        startY -= (maxBuildingHeightTiles - 1);
+
         startX = Math.max(0, startX);
         startY = Math.max(0, startY);
         endX = Math.min(gp.maxWorldCol - 1, endX);
@@ -526,6 +544,10 @@ public class Gameplay {
         int startY = (gp.cameraWorldY - gp.tinggiLayar / 2) / tileSize;
         int endX = startX + (gp.besarLayar / tileSize) + 2;
         int endY = startY + (gp.tinggiLayar / tileSize) + 2;
+
+        // Keep glow rendering in sync with building visibility culling.
+        startX -= (maxBuildingWidthTiles - 1);
+        startY -= (maxBuildingHeightTiles - 1);
 
         startX = Math.max(0, startX);
         startY = Math.max(0, startY);

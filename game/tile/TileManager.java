@@ -117,43 +117,34 @@ public class TileManager {
 
     }
     public void draw(Graphics2D g2){
-        // ini gambar tile pada x:0 y:0 yang bertambah 1 setiap udah menggambarkan jadi nanti 1 dan 1 dan seterusnya
+        if (mapTileNum == null) return;
+
         int Worldcol = 0;
         int Worldrow = 0;
-    
 
         while(Worldcol < gp.maxWorldCol && Worldrow < gp.maxWorldRow){
-            // worldX dan worldY itu dunianya
-            // screenX dan screenY itu kamera kamu di dunia itu 
             int tileNum = mapTileNum[Worldcol][Worldrow];
             int worldX = Worldcol * gp.tileSize;
             int worldY = Worldrow * gp.tileSize;
             int screenX = worldX - gp.cameraWorldX + gp.besarLayar/2;
             int screenY = worldY - gp.cameraWorldY + gp.tinggiLayar/2;
-            // untuk biar gambarnya hanya ngerender yang ada di layar user jadi biar mulus performa
-            if (worldX + gp.tileSize > gp.cameraWorldX - gp.besarLayar/2 &&
-                worldX - gp.tileSize< gp.cameraWorldX + gp.besarLayar/2 &&
-                worldY + gp.tileSize> gp.cameraWorldY - gp.tinggiLayar/2 &&
-                worldY - gp.tileSize< gp.cameraWorldY + gp.tinggiLayar/2){
 
-                    
+            if (screenX + gp.tileSize > 0 &&
+                screenX < gp.besarLayar &&
+                screenY + gp.tileSize > 0 &&
+                screenY < gp.tinggiLayar) {
 
+                if (tileNum >= 0 && tileNum < tile.length && tile[tileNum] != null) {
+                    g2.drawImage(tile[tileNum].image, screenX, screenY, gp.tileSize, gp.tileSize, null);
+                }
+            }
 
-            g2.drawImage(tile[tileNum].image, screenX, screenY, gp.tileSize, gp.tileSize, null);
-                    }
             Worldcol++;
-
-            //setiap udah nyentuh max Collumnnya yaitu 16 bakal ke reset balik ke 0
             if(Worldcol == gp.maxWorldCol){
                 Worldcol = 0;
                 Worldrow++;
-
-
             }
         }
-        
-
-        
     }
 
 
