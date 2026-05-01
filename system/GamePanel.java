@@ -44,6 +44,8 @@ public class GamePanel extends JPanel implements Runnable{
 	Gameplay gameplay = new Gameplay(keyH, mouseH, this); 
 	MainMenu mainMenu = new MainMenu(keyH, mouseH, gsm, this, gameplay); 
 	Thread gameThread;
+	// Pre-allocated once to avoid per-frame GC pressure and transparent-pixel black gaps
+	private BufferedImage gameBuffer = new BufferedImage(besarLayar, tinggiLayar, BufferedImage.TYPE_INT_RGB);
 	//posisi awal spawn tersebut
 
 	public GamePanel(){
@@ -156,9 +158,10 @@ public class GamePanel extends JPanel implements Runnable{
 		g2.setColor(Color.black);
 		g2.fillRect(0, 0, panelWidth, panelHeight);
 
-		// buat buffer gambar untuk render game dengan resolusi asli, nanti di scale saat menggambar ke panel
-		BufferedImage gameBuffer = new BufferedImage(besarLayar, tinggiLayar, BufferedImage.TYPE_INT_ARGB);
+		// gambar game ke gameBuffer dulu, baru nanti di draw ke panelnya, biar gak aneh pas di scale, nanti gambar game nya yang di scale bukan panelnya, jadi gak pecah
 		Graphics2D bg = gameBuffer.createGraphics();
+		bg.setColor(Color.black);
+		bg.fillRect(0, 0, besarLayar, tinggiLayar);
 
 		// render game berdasarkan state saat ini, misalnya menu atau gameplay
 		// kalo mau di ubah yang ini aja. jadi kalo mau nambah state baru tinggal nambahin else if nya aja
