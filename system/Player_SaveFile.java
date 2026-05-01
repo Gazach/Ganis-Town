@@ -17,7 +17,9 @@ public class Player_SaveFile {
                 "CREATE TABLE IF NOT EXISTS player_save (" +
                 "id INTEGER PRIMARY KEY," +
                 "money INTEGER," +
-                "day_time REAL DEFAULT 6.0)"
+                "day_time REAL DEFAULT 6.0," +
+                "temperature_high REAL DEFAULT 30.0," +
+                "temperature_low REAL DEFAULT 20.0)"
             );
 
             stmt.execute( // tabel untuk menyimpan data world map dalam format string yang bisa di-parse kembali saat load
@@ -58,6 +60,16 @@ public class Player_SaveFile {
         } catch (SQLException e) {
             // Column already exists – safe to ignore
         }
+
+        // nambahin kolom untuk suhu harian ke database, tapi kalau sudah ada ya gpp
+        try (Connection conn = DriverManager.getConnection(DB_URL);
+             Statement stmt = conn.createStatement()) {
+            stmt.execute("ALTER TABLE player_save ADD COLUMN temperature_high REAL DEFAULT 30.0");
+        } catch (SQLException e) { /* already exists */ }
+        try (Connection conn = DriverManager.getConnection(DB_URL);
+             Statement stmt = conn.createStatement()) {
+            stmt.execute("ALTER TABLE player_save ADD COLUMN temperature_low REAL DEFAULT 20.0");
+        } catch (SQLException e) { /* already exists */ }
     }
 
     public static int loadPlayerData() { // load data player dari database
@@ -118,6 +130,48 @@ public class Player_SaveFile {
         }
 
         return 6.0f; // fallback: start at 6 AM
+    }
+
+    public static void saveTemperature(float high, float low) { // simpan suhu harian ke database
+        try (Connection conn = DriverManager.getConnection(DB_URL);
+             PreparedStatement pstmt = conn.prepareStatement(
+                 "UPDATE player_save SET temperature_high = ?, temperature_low = ? WHERE id = 1")) {
+
+            pstmt.setFloat(1, high);
+            pstmt.setFloat(2, low);
+            pstmt.executeUpdate();
+
+        } catch (SQLException e) {
+            System.out.println("Error saving temperature: " + e.getMessage());
+        }
+    }
+
+    public static float loadTemperatureHigh() { // load suhu harian tertinggi dari database
+        try (Connection conn = DriverManager.getConnection(DB_URL);
+             Statement stmt = conn.createStatement();
+             ResultSet rs = stmt.executeQuery(
+                 "SELECT temperature_high FROM player_save WHERE id = 1")) {
+
+            if (rs.next()) return rs.getFloat("temperature_high");
+
+        } catch (SQLException e) {
+            System.out.println("Error loading temperature high: " + e.getMessage());
+        }
+        return 30.0f;
+    }
+
+    public static float loadTemperatureLow() { // load suhu harian terendah dari database
+        try (Connection conn = DriverManager.getConnection(DB_URL);
+             Statement stmt = conn.createStatement();
+             ResultSet rs = stmt.executeQuery(
+                 "SELECT temperature_low FROM player_save WHERE id = 1")) {
+
+            if (rs.next()) return rs.getFloat("temperature_low");
+
+        } catch (SQLException e) {
+            System.out.println("Error loading temperature low: " + e.getMessage());
+        }
+        return 20.0f;
     }
 
     public static void saveWorldMap(int[][] worldMap) {

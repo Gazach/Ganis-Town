@@ -4,7 +4,7 @@ import java.awt.Color;
 
 public class dayCycle {
 
-    // 5 real minutes = one full in-game day (24 hours)
+    // 5 menit real time = 24 jam in-game, jadi 1 menit real time = 4.8 jam in-game
     private static final long CYCLE_DURATION_MS = 5 * 60 * 1000L;
 
     private float currentHour; // 0.0 – 24.0
@@ -15,18 +15,18 @@ public class dayCycle {
         this.lastUpdateTime = System.currentTimeMillis();
     }
 
-    /** Advance the clock by real elapsed time. Call once per game tick. */
+    /** update waktu siang/malam */
     public void update() {
         long now = System.currentTimeMillis();
         long elapsed = now - lastUpdateTime;
         lastUpdateTime = now;
 
-        // elapsed ms / CYCLE_DURATION_MS * 24h = in-game hours advanced
+        // konversi waktu yang berlalu ke dalam jam in-game, dan update currentHour
         float hoursAdvanced = (elapsed / (float) CYCLE_DURATION_MS) * 24.0f;
         currentHour = (currentHour + hoursAdvanced) % 24.0f;
     }
 
-    /** Set the current in-game hour (0.0 – 24.0). Used when loading a save. */
+    /** set jam saat ini (0.0 – 24.0). Digunakan saat memuat save. */
     public void setHour(float hour) {
         this.currentHour = ((hour % 24.0f) + 24.0f) % 24.0f;
         this.lastUpdateTime = System.currentTimeMillis();
@@ -37,8 +37,8 @@ public class dayCycle {
     }
 
     /**
-     * Returns a 0.0–1.0 darkness factor.
-     * 0 = full daylight, 1 = full night.
+     * Mengembalikan faktor kegelapan 0.0–1.0.
+     * 0 = siang penuh, 1 = malam penuh.
      */
     public float getDarkness() {
         float h = currentHour;
@@ -58,8 +58,8 @@ public class dayCycle {
     }
 
     /**
-     * Semi-transparent dark-blue overlay that represents night.
-     * Returns a fully transparent color during the day.
+     * Semi-transparent dark-blue overlay untuk efek siang/malam. Semakin gelap semakin tebal overlay-nya.
+     * Alpha maksimal sekitar 170/255 agar masih bisa lihat pemandangan di malam hari.
      */
     public Color getOverlayColor() {
         float darkness = getDarkness();
@@ -68,7 +68,7 @@ public class dayCycle {
         return new Color(0, 8, 35, alpha);
     }
 
-    /** Human-readable time label, e.g. "06:30 AM". */
+    /** mengembalikan label waktu dalam format jam:menit AM/PM */
     public String getTimeLabel() {
         int h = (int) currentHour;
         int m = (int) ((currentHour - h) * 60);
@@ -78,7 +78,7 @@ public class dayCycle {
         return String.format("%02d:%02d %s", displayH, m, period);
     }
 
-    /** Returns the name of the current time of day (Night / Dawn / Day / Dusk). */
+    /** mengembalikan nama periode waktu saat ini (Malam / Fajar / Siang / Senja). */
     public String getPeriodName() {
         float h = currentHour;
         if (h >= 7f && h < 18f)  return "Day";

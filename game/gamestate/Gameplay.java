@@ -20,6 +20,7 @@ import game.Toolbar;
 import game.BuildingType;
 import game.BuildingInstance;
 import game.dayCycle;
+import game.worldTemperature;
 // load system
 import system.KeyHandler;
 import system.GamePanel;
@@ -59,6 +60,7 @@ public class Gameplay {
     private long lastIncomeTime = System.currentTimeMillis();
     private BufferedImage coinImage;
     private dayCycle dayTime = new dayCycle();
+    private worldTemperature temperature = new worldTemperature();
 
     // konstanta untuk layout panel info detail bangunan, untuk memudahkan penyesuaian tampilan
     private static final int BUILDING_INFO_PANEL_TOP_BOTTOM_MARGIN = 40;
@@ -133,6 +135,7 @@ public class Gameplay {
         playerMoney = 2500;
         lastIncomeTime = System.currentTimeMillis();
         dayTime.setHour(6.0f);
+        temperature = new worldTemperature();
         resetBuildModeState();
     }
 
@@ -200,6 +203,7 @@ public class Gameplay {
         
         toolbar.update(mouseH.mouseX, mouseH.mouseY);
         dayTime.update();
+        temperature.update(dayTime.getHour());
         tickBuildingIncome();
     }
 
@@ -241,7 +245,13 @@ public class Gameplay {
         }
 
         playerMoney = Player_SaveFile.loadPlayerData();
-        dayTime.setHour(Player_SaveFile.loadDayTime());
+        float savedHour = Player_SaveFile.loadDayTime();
+        dayTime.setHour(savedHour);
+        temperature.load(
+            Player_SaveFile.loadTemperatureHigh(),
+            Player_SaveFile.loadTemperatureLow(),
+            savedHour
+        );
         lastIncomeTime = System.currentTimeMillis();
 
         if (loadedBuildingsMap != null
@@ -935,7 +945,8 @@ public class Gameplay {
         Font hudFont = buildingInfoBodyFont != null ? buildingInfoBodyFont.deriveFont(Font.BOLD, 15f) : new Font("Dialog", Font.BOLD, 15);
         g2.setFont(hudFont);
 
-        String timeText = dayTime.getTimeLabel() + "  " + dayTime.getPeriodName();
+        String timeText = dayTime.getTimeLabel() + "  " + dayTime.getPeriodName()
+            + "   " + temperature.getTempLabel(dayTime.getHour());
         int padding = 8;
         int boxH = 24;
         int textW = g2.getFontMetrics().stringWidth(timeText);
@@ -960,5 +971,6 @@ public class Gameplay {
         Player_SaveFile.saveBuildingsMap(buildingDataMap);
         Player_SaveFile.savePlayerData(playerMoney);
         Player_SaveFile.saveDayTime(dayTime.getHour());
+        Player_SaveFile.saveTemperature(temperature.getDailyHigh(), temperature.getDailyLow());
     }
 }
