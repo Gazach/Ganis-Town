@@ -11,6 +11,7 @@ import java.awt.image.BufferedImage;
 import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
+import javax.imageio.ImageIO;
 import java.util.HashSet;
 import java.util.Set;
 
@@ -54,6 +55,7 @@ public class Gameplay {
     Toolbar toolbar = new Toolbar();
     private int playerMoney = 2500;
     private long lastIncomeTime = System.currentTimeMillis();
+    private BufferedImage coinImage;
 
     // konstanta untuk layout panel info detail bangunan, untuk memudahkan penyesuaian tampilan
     private static final int BUILDING_INFO_PANEL_TOP_BOTTOM_MARGIN = 40;
@@ -79,6 +81,23 @@ public class Gameplay {
         buildingOccupiedMap = new boolean[gp.maxWorldCol][gp.maxWorldRow];
         buildingInfoPanelSkin = new panel();
         loadBuildingInfoFonts();
+        loadCoinImage();
+    }
+
+    private void loadCoinImage() {
+        try {
+            InputStream stream = getClass().getResourceAsStream("/asset/gameplayUI/coin.png");
+            if (stream != null) {
+                coinImage = ImageIO.read(stream);
+                return;
+            }
+            File file = new File("asset/gameplayUI/coin.png");
+            if (file.exists()) {
+                coinImage = ImageIO.read(file);
+            }
+        } catch (IOException e) {
+            System.out.println("Failed to load coin image: " + e.getMessage());
+        }
     }
 
     // Method untuk generate world map baru dengan Perlin noise, dipanggil saat start new game atau load game tanpa save file
@@ -778,36 +797,57 @@ public class Gameplay {
 
     // Gambar uang player di pojok kiri atas layar
     private void drawMoneyHUD(Graphics2D g2) {
-        String moneyText = "$ " + playerMoney;
+        Font hudFont = buildingInfoBodyFont != null ? buildingInfoBodyFont.deriveFont(Font.BOLD, 17f) : new Font("Dialog", Font.BOLD, 17);
+        g2.setFont(hudFont);
 
-        g2.setFont(buildingInfoBodyFont != null ? buildingInfoBodyFont.deriveFont(Font.BOLD, 17f) : new Font("Dialog", Font.BOLD, 17));
-
+        int coinSize = 20;
         int padding = 10;
-        int textWidth = g2.getFontMetrics().stringWidth(moneyText);
-        int boxW = textWidth + padding * 2;
+        int gap = 6; // gap between coin icon and text
         int boxH = 28;
         int boxX = 8;
         int boxY = 8;
 
+        String moneyText = String.valueOf(playerMoney);
+        int textWidth = g2.getFontMetrics().stringWidth(moneyText);
+        int iconSlot = (coinImage != null) ? coinSize + gap : 0;
+        int boxW = iconSlot + textWidth + padding * 2;
+
         g2.setColor(new Color(0, 0, 0, 150));
         g2.fillRoundRect(boxX, boxY, boxW, boxH, 8, 8);
+
+        int contentX = boxX + padding;
+        int coinY = boxY + (boxH - coinSize) / 2;
+        if (coinImage != null) {
+            g2.drawImage(coinImage, contentX, coinY, coinSize, coinSize, null);
+            contentX += coinSize + gap;
+        }
+
         g2.setColor(new Color(255, 220, 60));
-        g2.drawString(moneyText, boxX + padding, boxY + boxH - 8);
+        g2.drawString(moneyText, contentX, boxY + boxH - 8);
 
         // Kalau sedang dalam build mode dan bangunan dipilih, tampilkan harga bangunan
         BuildingType selected = toolbar.getSelectedBuilding();
         if (showGrid && selected != null) {
-            String priceText = "Cost: " + selected.getPrice();
+            String priceText = "" + selected.getPrice();
             boolean canAfford = playerMoney >= selected.getPrice();
             int pw = g2.getFontMetrics().stringWidth(priceText);
+            int pIconSlot = (coinImage != null) ? coinSize + gap : 0;
             int pBoxX = 8;
             int pBoxY = boxY + boxH + 4;
-            int pBoxW = pw + padding * 2;
+            int pBoxW = pIconSlot + pw + padding * 2;
 
             g2.setColor(new Color(0, 0, 0, 150));
             g2.fillRoundRect(pBoxX, pBoxY, pBoxW, boxH, 8, 8);
+
+            int pContentX = pBoxX + padding;
+            int pCoinY = pBoxY + (boxH - coinSize) / 2;
+            if (coinImage != null) {
+                g2.drawImage(coinImage, pContentX, pCoinY, coinSize, coinSize, null);
+                pContentX += coinSize + gap;
+            }
+
             g2.setColor(canAfford ? new Color(120, 255, 120) : new Color(255, 80, 80));
-            g2.drawString(priceText, pBoxX + padding, pBoxY + boxH - 8);
+            g2.drawString(priceText, pContentX, pBoxY + boxH - 8);
         }
     }
 
