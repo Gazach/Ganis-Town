@@ -57,6 +57,7 @@ public class Gameplay {
     private boolean isEditingBuildingTitle = false;
     private String buildingTitleDraft = "";
     private panel buildingInfoPanelSkin;
+    private panel hudPanelSkin;
     private Font buildingInfoTitleFont;
     private Font buildingInfoBodyFont;
     Toolbar toolbar = new Toolbar();
@@ -90,6 +91,7 @@ public class Gameplay {
         buildingOccupiedMap = new boolean[gp.maxWorldCol][gp.maxWorldRow];
         cacheMaxBuildingDimensions();
         buildingInfoPanelSkin = new panel();
+        hudPanelSkin = new panel("/asset/Panel/butmore");
         loadBuildingInfoFonts();
         loadCoinImage();
     }
@@ -659,9 +661,9 @@ public class Gameplay {
 
         buildingInfoPanelSkin.draw(g2, panelX, panelY, panelWidth, panelHeight);
 
-        int titleX = panelX + BUILDING_TITLE_INPUT_X_PADDING;
+        int titleWidth = BUILDING_INFO_PANEL_WIDTH - (BUILDING_TITLE_INPUT_X_PADDING * 2) - 10;
+        int titleX = panelX + (BUILDING_INFO_PANEL_WIDTH - titleWidth) / 2;
         int titleY = panelY + BUILDING_TITLE_INPUT_Y;
-        int titleWidth = BUILDING_INFO_PANEL_WIDTH - (BUILDING_TITLE_INPUT_X_PADDING * 2);
 
         // Background dan border untuk area judul, juga menampilkan nama bangunan dan kursor saat edit
         g2.setColor(new Color(24, 24, 24, 77));
@@ -972,46 +974,89 @@ public class Gameplay {
         // gambar UI detail bangunan saat player klik bangunan di map
         drawBuildingDetailUI(g2);
 
-        drawMoneyHUD(g2);
-        drawTimeHUD(g2);
+        drawPlayerHUD(g2);
+    }
+    // Method untuk menghitung total income per detik dari semua bangunan yang ada, dipakai untuk menampilkan income di UI dan kalkulasi uang player
+    private int getTotalIncomePerSecond() {
+        int total = 0;
+        for (int x = 0; x < gp.maxWorldCol; x++) {
+            for (int y = 0; y < gp.maxWorldRow; y++) {
+                BuildingType type = buildingsMap[x][y];
+                if (type != null) {
+                    total += type.getIncomePerSecond();
+                }
+            }
+        }
+        return total;
     }
 
     // Gambar uang player di pojok kiri atas layar
-    private void drawMoneyHUD(Graphics2D g2) {
+    private void drawPlayerHUD(Graphics2D g2) {
         Font hudFont = buildingInfoBodyFont != null ? buildingInfoBodyFont.deriveFont(Font.BOLD, 17f) : new Font("Dialog", Font.BOLD, 17);
         g2.setFont(hudFont);
 
         int coinSize = 20;
-        int padding = 10;
         int gap = 6; // gap between coin icon and text
+
+        int innerPadX = 10;
         int boxH = 28;
+        int innerPadY = 0;
+        int contentH = boxH;
         int boxX = 8;
         int boxY = 8;
 
         String moneyText = formatMoney(playerMoney);
+        int totalIncome = getTotalIncomePerSecond();
+        String incomeText = totalIncome > 0 ? "  +" + formatMoney(totalIncome) + "/s" : "";
         int textWidth = g2.getFontMetrics().stringWidth(moneyText);
+        int incomeWidth = g2.getFontMetrics().stringWidth(incomeText);
         int iconSlot = (coinImage != null) ? coinSize + gap : 0;
-        int boxW = iconSlot + textWidth + padding * 2;
 
-        g2.setColor(new Color(0, 0, 0, 150));
-        g2.fillRoundRect(boxX, boxY, boxW, boxH, 8, 8);
+        // Warna teks untuk waktu dan temperatur berubah berdasarkan darkness, semakin gelap semakin mendekati warna oranye, semakin terang mendekati warna putih
+        float darkness = dayTime.getDarkness();
+        String timeDivider = "  |  ";
+        String timeText = dayTime.getTimeLabel() + "  " + dayTime.getPeriodName()
+            + "   " + temperature.getTempLabel(dayTime.getHour());
+        int timeDividerWidth = g2.getFontMetrics().stringWidth(timeDivider);
+        int timeTextWidth = g2.getFontMetrics().stringWidth(timeText);
 
-        int contentX = boxX + padding;
-        int coinY = boxY + (boxH - coinSize) / 2;
+        int boxW = iconSlot + textWidth + incomeWidth + timeDividerWidth + timeTextWidth + innerPadX * 2;
+
+        hudPanelSkin.draw(g2, boxX, boxY, boxW, boxH);
+
+        int contentX = boxX + innerPadX;
+        int coinY = boxY + innerPadY + (contentH - coinSize) / 2;
         if (coinImage != null) {
             g2.drawImage(coinImage, contentX, coinY, coinSize, coinSize, null);
             contentX += coinSize + gap;
         }
 
-        drawStrokedText(
-            g2,
-            moneyText,
-            contentX,
-            boxY + boxH - 8,
-            new Color(255, 220, 60),
-            new Color(0, 0, 0, 220),
-            1.5f
-        );
+        int textBaseY = boxY + boxH - 8;
+        drawStrokedText(g2, moneyText, contentX, textBaseY,
+            new Color(255, 220, 60), new Color(0, 0, 0, 220), 1.5f);
+
+        if (!incomeText.isEmpty()) {
+            drawStrokedText(
+                g2,
+                incomeText,
+                contentX + textWidth,
+                textBaseY,
+                new Color(100, 230, 120),
+                new Color(0, 0, 0, 220),
+                1.5f
+            );
+        }
+
+        // waktu dan temperatur di pojok kanan atas, warnanya berubah berdasarkan darkness, semakin gelap semakin mendekati warna oranye, semakin terang mendekati warna putih
+        int tr = (int)(255 * (1f - darkness * 0.4f));
+        int tg = (int)(220 + darkness * 20f);
+        int tb = (int)(150 + darkness * 105f);
+        int dividerX = boxX + innerPadX + iconSlot + textWidth + incomeWidth;
+        drawStrokedText(g2, timeDivider, dividerX, textBaseY,
+            new Color(180, 180, 180), new Color(0, 0, 0, 220), 1.5f);
+        drawStrokedText(g2, timeText, dividerX + timeDividerWidth, textBaseY,
+            new Color(Math.min(tr,255), Math.min(tg,255), Math.min(tb,255)),
+            new Color(0, 0, 0, 220), 1.5f);
 
         // Kalau sedang dalam build mode dan bangunan dipilih, tampilkan harga bangunan
         BuildingType selected = toolbar.getSelectedBuilding();
@@ -1022,12 +1067,11 @@ public class Gameplay {
             int pIconSlot = (coinImage != null) ? coinSize + gap : 0;
             int pBoxX = 8;
             int pBoxY = boxY + boxH + 4;
-            int pBoxW = pIconSlot + pw + padding * 2;
+            int pBoxW = pIconSlot + pw + innerPadX * 2;
 
-            g2.setColor(new Color(0, 0, 0, 150));
-            g2.fillRoundRect(pBoxX, pBoxY, pBoxW, boxH, 8, 8);
+            hudPanelSkin.draw(g2, pBoxX, pBoxY, pBoxW, boxH);
 
-            int pContentX = pBoxX + padding;
+            int pContentX = pBoxX + innerPadX;
             int pCoinY = pBoxY + (boxH - coinSize) / 2;
             if (coinImage != null) {
                 g2.drawImage(coinImage, pContentX, pCoinY, coinSize, coinSize, null);
@@ -1044,39 +1088,6 @@ public class Gameplay {
                 1.5f
             );
         }
-    }
-
-    // Gambar waktu dan suhu di tengah atas layar, warna teks berubah berdasarkan periode waktu (lebih cerah saat siang, lebih gelap saat malam)
-    private void drawTimeHUD(Graphics2D g2) {
-        Font hudFont = buildingInfoBodyFont != null ? buildingInfoBodyFont.deriveFont(Font.BOLD, 15f) : new Font("Dialog", Font.BOLD, 15);
-        g2.setFont(hudFont);
-
-        String timeText = dayTime.getTimeLabel() + "  " + dayTime.getPeriodName()
-            + "   " + temperature.getTempLabel(dayTime.getHour());
-        int padding = 8;
-        int boxH = 24;
-        int textW = g2.getFontMetrics().stringWidth(timeText);
-        int boxW = textW + padding * 2;
-        int boxX = (screenWidth - boxW) / 2;
-        int boxY = 8;
-
-        g2.setColor(new Color(0, 0, 0, 150));
-        g2.fillRoundRect(boxX, boxY, boxW, boxH, 8, 8);
-
-        // Text colour shifts by period
-        float darkness = dayTime.getDarkness();
-        int r = (int)(255 * (1f - darkness * 0.4f));
-        int gr = (int)(220 + darkness * 20f);
-        int b = (int)(150 + darkness * 105f);
-        drawStrokedText(
-            g2,
-            timeText,
-            boxX + padding,
-            boxY + boxH - 6,
-            new Color(Math.min(r,255), Math.min(gr,255), Math.min(b,255)),
-            new Color(0, 0, 0, 220),
-            1.5f
-        );
     }
 
     public void saveGame() { // save game

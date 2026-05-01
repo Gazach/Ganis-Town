@@ -42,19 +42,34 @@ public class panel {
 		return topHeight + bottomHeight;
 	}
 
+	public int getTopHeight()    { return topHeight; }
+	public int getBottomHeight() { return bottomHeight; }
+	public int getLeftWidth()    { return leftWidth; }
+	public int getRightWidth()   { return rightWidth; }
+
 	public void draw(Graphics2D g2, int x, int y, int width, int height) {
 		if (g2 == null || width <= 0 || height <= 0) {
 			return;
 		}
 
-		int drawWidth = Math.max(width, getMinWidth());
-		int drawHeight = Math.max(height, getMinHeight());
+		// Scale borders proportionally if the requested size is smaller than the natural minimum
+		float scaleX = (width  < getMinWidth())  ? (float) width  / getMinWidth()  : 1f;
+		float scaleY = (height < getMinHeight()) ? (float) height / getMinHeight() : 1f;
+		float scale  = Math.min(scaleX, scaleY);
 
-		int centerWidth = Math.max(0, drawWidth - leftWidth - rightWidth);
-		int centerHeight = Math.max(0, drawHeight - topHeight - bottomHeight);
+		int scaledLeft   = Math.max(1, Math.round(leftWidth   * scale));
+		int scaledRight  = Math.max(1, Math.round(rightWidth  * scale));
+		int scaledTop    = Math.max(1, Math.round(topHeight   * scale));
+		int scaledBottom = Math.max(1, Math.round(bottomHeight * scale));
 
-		int[] dstX = { x, x + leftWidth, x + leftWidth + centerWidth };
-		int[] dstY = { y, y + topHeight, y + topHeight + centerHeight };
+		int centerWidth  = Math.max(0, width  - scaledLeft - scaledRight);
+		int centerHeight = Math.max(0, height - scaledTop  - scaledBottom);
+
+		int[] dstX = { x, x + scaledLeft, x + scaledLeft + centerWidth };
+		int[] dstY = { y, y + scaledTop,  y + scaledTop  + centerHeight };
+
+		int[] partW = { scaledLeft, centerWidth, scaledRight };
+		int[] partH = { scaledTop, centerHeight, scaledBottom };
 
 		Object oldInterpolation = g2.getRenderingHint(RenderingHints.KEY_INTERPOLATION);
 		g2.setRenderingHint(RenderingHints.KEY_INTERPOLATION, RenderingHints.VALUE_INTERPOLATION_NEAREST_NEIGHBOR);
@@ -63,10 +78,10 @@ public class panel {
 			for (int row = 0; row < ROWS; row++) {
 				for (int col = 0; col < COLS; col++) {
 					BufferedImage part = slices[row][col];
-					int partDrawWidth = getPartWidth(col, centerWidth);
-					int partDrawHeight = getPartHeight(row, centerHeight);
+					int pw = partW[col];
+					int ph = partH[row];
 
-					if (partDrawWidth <= 0 || partDrawHeight <= 0) {
+					if (pw <= 0 || ph <= 0) {
 						continue;
 					}
 
@@ -74,8 +89,8 @@ public class panel {
 						part,
 						dstX[col],
 						dstY[row],
-						dstX[col] + partDrawWidth,
-						dstY[row] + partDrawHeight,
+						dstX[col] + pw,
+						dstY[row] + ph,
 						0,
 						0,
 						part.getWidth(),
@@ -89,26 +104,6 @@ public class panel {
 				g2.setRenderingHint(RenderingHints.KEY_INTERPOLATION, oldInterpolation);
 			}
 		}
-	}
-
-	private int getPartWidth(int col, int centerWidth) {
-		if (col == 0) {
-			return leftWidth;
-		}
-		if (col == 1) {
-			return centerWidth;
-		}
-		return rightWidth;
-	}
-
-	private int getPartHeight(int row, int centerHeight) {
-		if (row == 0) {
-			return topHeight;
-		}
-		if (row == 1) {
-			return centerHeight;
-		}
-		return bottomHeight;
 	}
 
 	private void loadSlices(String panelDirectory) {
