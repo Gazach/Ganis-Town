@@ -13,10 +13,10 @@ public enum BuildingType {
     //   HOUSING  → bangunan tempat tinggal, memberikan populasi (minPeople–maxPeople) per unit, incomePerSecond = 0
     //   PRODUCTION → bangunan produksi, menghasilkan uang per detik, minPeople/maxPeople = 0
     //
-    //                          w  h    price   category                minP maxP maxW income/s  animFrameCount
-    HOUSE(          1, 1,   500, BuildingCategory.HOUSING,    2,   4,  0,  0,  2),
-    BUILDING_2X2(   2, 2,  1500, BuildingCategory.PRODUCTION, 0,   0,  4, 10,  2),
-    BUILDING_2X4(   2, 4,  3000, BuildingCategory.PRODUCTION, 0,   0,  6, 25,  2);
+    //                          w  h    price   category                minP maxP maxW income/s  animFrameCount  animSpeed (ticks/frame)
+    HOUSE(          1, 1,   500, BuildingCategory.HOUSING,    2,   4,  0,  0,  0,  1),
+    BUILDING_2X2(   2, 2,  1500, BuildingCategory.PRODUCTION, 0,   0,  4, 10,  5,  12),  // 60/6 = 10 fps
+    BUILDING_2X4(   2, 3,  3000, BuildingCategory.PRODUCTION, 0,   0,  6, 25,  3,  6);  // 60/6 = 10 fps
 
     // -------------------------------------------------------------------------
     public enum BuildingCategory {
@@ -34,10 +34,11 @@ public enum BuildingType {
     private final int maxWorkers;
     private final int incomePerSecond;
     private final int animationFrameCount;
+    private final int animationSpeed;
     private BufferedImage[] animationFrames;
 
     BuildingType(int width, int height, int price, BuildingCategory category,
-                 int minPeople, int maxPeople, int maxWorkers, int incomePerSecond, int animationFrameCount) {
+                 int minPeople, int maxPeople, int maxWorkers, int incomePerSecond, int animationFrameCount, int animationSpeed) {
         this.width          = width;
         this.height         = height;
         this.price          = price;
@@ -47,6 +48,7 @@ public enum BuildingType {
         this.maxWorkers     = maxWorkers;
         this.incomePerSecond = incomePerSecond;
         this.animationFrameCount = animationFrameCount;
+        this.animationSpeed = animationSpeed;
         this.animationFrames = new BufferedImage[animationFrameCount];
         loadAnimationFrames();
     }
@@ -80,5 +82,6 @@ public enum BuildingType {
     public int getMaxWorkers()       { return maxWorkers; }
     public int getIncomePerSecond()  { return incomePerSecond; }
     public int getAnimationFrameCount() { return animationFrameCount; }
+    public int getAnimationSpeed()       { return animationSpeed; }
     public BufferedImage[] getAnimationFrames() { return animationFrames; }
 }

@@ -640,7 +640,7 @@ public class Gameplay {
                 boolean useOpacityFallback = false;
                 
                 if (animFrames != null && animFrames.length > 0) {
-                    int currentFrame = (buildingAnimationCounter / BUILDING_ANIMATION_SPEED) % building.getAnimationFrameCount();
+                    int currentFrame = (buildingAnimationCounter / building.getAnimationSpeed()) % building.getAnimationFrameCount();
                     if (animFrames[currentFrame] != null) {
                         image = animFrames[currentFrame];
                     } else {
@@ -701,7 +701,7 @@ public class Gameplay {
             BufferedImage[] animFrames = building.getAnimationFrames();
 
             if (animFrames != null && animFrames.length > 0) {
-                int currentFrame = (buildingAnimationCounter / BUILDING_ANIMATION_SPEED) % building.getAnimationFrameCount();
+                int currentFrame = (buildingAnimationCounter / building.getAnimationSpeed()) % building.getAnimationFrameCount();
                 if (animFrames[currentFrame] != null) {
                     image = animFrames[currentFrame]; // ← Pakai frame animasi
                 }
