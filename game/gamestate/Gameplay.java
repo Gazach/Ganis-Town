@@ -8,6 +8,7 @@ import java.awt.FontFormatException;
 import java.awt.BasicStroke;
 import java.awt.Stroke;
 import java.awt.RadialGradientPaint;
+import java.awt.AlphaComposite;
 import java.awt.font.TextLayout;
 import java.awt.geom.AffineTransform;
 import java.awt.image.BufferedImage;
@@ -24,6 +25,7 @@ import java.util.Set;
 import game.Toolbar;
 import game.BuildingType;
 import game.BuildingInstance;
+import game.Particle;
 import game.dayCycle;
 import game.worldTemperature;
 // load system
@@ -81,6 +83,13 @@ public class Gameplay {
     private Font hudFont;
     private Font detailTitleFontCached;
     private Font detailBodyFontCached;
+
+    // Animasi untuk bangunan
+    private int buildingAnimationCounter = 0;
+    private static final int BUILDING_ANIMATION_SPEED = 30;  // Ubah frame setiap 5 update (lebih cepat)
+
+    // Sistem particle untuk efek asap
+    private List<Particle> activeParticles = new ArrayList<>();
 
     // konstanta untuk layout panel info detail bangunan, untuk memudahkan penyesuaian tampilan
     private static final int BUILDING_INFO_PANEL_TOP_BOTTOM_MARGIN = 40;
@@ -219,6 +228,12 @@ public class Gameplay {
     }
  
     public void updateGameplay(){ // Update untuk Logic gameplay, seperti input, movement, dll
+        // Update animation counter
+        buildingAnimationCounter++;
+
+        // ✅ Update partikel, hapus yang sudah mati
+        activeParticles.removeIf(p -> !p.update());
+
         handleBuildingTitleEditingInput();
 
         // update player camera based dari dragging mouse
@@ -384,7 +399,27 @@ public class Gameplay {
             markBuildingOccupied(gridX, gridY, building, true);
             playerMoney -= building.getPrice();
             recalcIncomeCache();
+            
+            // ✅ Spawn efek asap saat bangunan ditempatkan
+            spawnSmokeEffect(gridX, gridY, building);
+            
             saveGame();
+        }
+    }
+
+    private void spawnSmokeEffect(int gridX, int gridY, BuildingType building) {
+        // Titik spawn = tengah horizontal, sedikit di ATAS bagian bawah bangunan
+        float worldCenterX = (gridX + building.getWidth() / 2f) * tileSize;
+        float worldBottomY = (gridY + building.getHeight()) * tileSize;  // Bagian bawah bangunan
+        float spawnOffsetY = worldBottomY - 12;  // Spawn 12 pixel di atas bagian bawah
+
+        // Konversi ke screen coordinate
+        float screenX = worldCenterX - gp.cameraWorldX + gp.besarLayar / 2f;
+        float screenY = spawnOffsetY - gp.cameraWorldY + gp.tinggiLayar / 2f;
+
+        int jumlahPartikel = 18 + (building.getWidth() * building.getHeight() * 3);
+        for (int i = 0; i < jumlahPartikel; i++) {
+            activeParticles.add(new Particle(screenX, screenY));
         }
     }
 
@@ -599,9 +634,31 @@ public class Gameplay {
                 int drawWidth = tileSize * building.getWidth();
                 int drawHeight = tileSize * building.getHeight();
 
-                BufferedImage image = toolbar.getBuildingImage(building);
+                // Gunakan animasi jika tersedia
+                BufferedImage image = null;
+                BufferedImage[] animFrames = building.getAnimationFrames();
+                boolean useOpacityFallback = false;
+                
+                if (animFrames != null && animFrames.length > 0) {
+                    int currentFrame = (buildingAnimationCounter / BUILDING_ANIMATION_SPEED) % building.getAnimationFrameCount();
+                    if (animFrames[currentFrame] != null) {
+                        image = animFrames[currentFrame];
+                    } else {
+                        image = toolbar.getBuildingImage(building);  // Fallback ke gambar statis
+                        useOpacityFallback = true;
+                    }
+                } else {
+                    image = toolbar.getBuildingImage(building);  // Fallback ke gambar statis
+                    useOpacityFallback = true;
+                }
+
                 if (image != null) {
-                    g2.drawImage(image, screenX, screenY, drawWidth, drawHeight, null);
+                    if (useOpacityFallback) {
+                        // Tidak ada animasi fallback - gambar statis saja
+                        g2.drawImage(image, screenX, screenY, drawWidth, drawHeight, null);
+                    } else {
+                        g2.drawImage(image, screenX, screenY, drawWidth, drawHeight, null);
+                    }
                 } else {
                     g2.setColor(new Color(190, 150, 90));
                     g2.fillRect(screenX, screenY, drawWidth, drawHeight);
@@ -612,46 +669,58 @@ public class Gameplay {
 
     /** Draws warm radial glows for all on-screen buildings after the night overlay. */
     private void drawBuildingGlows(Graphics2D g2) {
-        float darkness = dayTime.getDarkness();
-        if (darkness <= 0f) return;
+    float darkness = dayTime.getDarkness();
+    if (darkness <= 0f) return;
 
-        int startX = (gp.cameraWorldX - gp.besarLayar / 2) / tileSize;
-        int startY = (gp.cameraWorldY - gp.tinggiLayar / 2) / tileSize;
-        int endX = startX + (gp.besarLayar / tileSize) + 2;
-        int endY = startY + (gp.tinggiLayar / tileSize) + 2;
+    int startX = (gp.cameraWorldX - gp.besarLayar / 2) / tileSize;
+    int startY = (gp.cameraWorldY - gp.tinggiLayar / 2) / tileSize;
+    int endX = startX + (gp.besarLayar / tileSize) + 2;
+    int endY = startY + (gp.tinggiLayar / tileSize) + 2;
 
-        // Keep glow rendering in sync with building visibility culling.
-        startX -= (maxBuildingWidthTiles - 1);
-        startY -= (maxBuildingHeightTiles - 1);
+    startX -= (maxBuildingWidthTiles - 1);
+    startY -= (maxBuildingHeightTiles - 1);
+    startX = Math.max(0, startX);
+    startY = Math.max(0, startY);
+    endX = Math.min(gp.maxWorldCol - 1, endX);
+    endY = Math.min(gp.maxWorldRow - 1, endY);
 
-        startX = Math.max(0, startX);
-        startY = Math.max(0, startY);
-        endX = Math.min(gp.maxWorldCol - 1, endX);
-        endY = Math.min(gp.maxWorldRow - 1, endY);
+    for (int x = startX; x <= endX; x++) {
+        for (int y = startY; y <= endY; y++) {
+            BuildingType building = buildingsMap[x][y];
+            if (building == null) continue;
 
-        for (int x = startX; x <= endX; x++) {
-            for (int y = startY; y <= endY; y++) {
-                BuildingType building = buildingsMap[x][y];
-                if (building == null) continue;
+            int screenX = x * tileSize - gp.cameraWorldX + gp.besarLayar / 2;
+            int screenY = y * tileSize - gp.cameraWorldY + gp.tinggiLayar / 2;
+            int drawWidth = tileSize * building.getWidth();
+            int drawHeight = tileSize * building.getHeight();
 
-                int screenX = x * tileSize - gp.cameraWorldX + gp.besarLayar / 2;
-                int screenY = y * tileSize - gp.cameraWorldY + gp.tinggiLayar / 2;
-                int drawWidth = tileSize * building.getWidth();
-                int drawHeight = tileSize * building.getHeight();
+            drawBuildingGlow(g2, screenX, screenY, drawWidth, drawHeight, darkness);
 
-                drawBuildingGlow(g2, screenX, screenY, drawWidth, drawHeight, darkness);
+            // ✅ FIX: Pakai frame animasi yang sama seperti drawBuildings()
+            BufferedImage image = null;
+            BufferedImage[] animFrames = building.getAnimationFrames();
 
-                // Redraw the building sprite on top of its own glow so it stays crisp
-                BufferedImage image = toolbar.getBuildingImage(building);
-                if (image != null) {
-                    g2.drawImage(image, screenX, screenY, drawWidth, drawHeight, null);
-                } else {
-                    g2.setColor(new Color(190, 150, 90));
-                    g2.fillRect(screenX, screenY, drawWidth, drawHeight);
+            if (animFrames != null && animFrames.length > 0) {
+                int currentFrame = (buildingAnimationCounter / BUILDING_ANIMATION_SPEED) % building.getAnimationFrameCount();
+                if (animFrames[currentFrame] != null) {
+                    image = animFrames[currentFrame]; // ← Pakai frame animasi
                 }
+            }
+
+            // Fallback ke static image kalau animasi tidak tersedia
+            if (image == null) {
+                image = toolbar.getBuildingImage(building);
+            }
+
+            if (image != null) {
+                g2.drawImage(image, screenX, screenY, drawWidth, drawHeight, null);
+            } else {
+                g2.setColor(new Color(190, 150, 90));
+                g2.fillRect(screenX, screenY, drawWidth, drawHeight);
             }
         }
     }
+}
 
     /** Draws a warm radial glow around a building using a pre-rendered image (cheap drawImage instead of RadialGradientPaint). */
     private void drawBuildingGlow(Graphics2D g2, int screenX, int screenY, int drawWidth, int drawHeight, float darkness) {
@@ -1093,6 +1162,11 @@ public class Gameplay {
         gp.tileM.draw(g2); // gambar tile berdasarkan worldMap
 
         drawBuildings(g2); // gambar bangunan di atas terrain
+
+        // ✅ Gambar asep di sini, di atas bangunan
+        for (Particle p : activeParticles) {
+            p.draw(g2);
+        }
 
         drawDayNightOverlay(g2); // gambar overlay siang/malam
 

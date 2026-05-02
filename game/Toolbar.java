@@ -37,13 +37,13 @@ public class Toolbar {
 
         // Urutan HARUS sama dengan urutan enum di BuildingType.java
         String[] normalImages = {
-            "/asset/Toolbar/house_normal.png",        // HOUSE
-            "/asset/Toolbar/building2x2_normals.png",  // BUILDING_2X2
+            "/asset/Toolbar/building1x1_normal.png",        // HOUSE
+            "/asset/Toolbar/building2x2_normal.png",  // BUILDING_2X2
             "/asset/Toolbar/building2x4_normal.png"   // BUILDING_2X4
         };
 
         String[] hoverImages = {
-            "/asset/Toolbar/house_hover.png",
+            "/asset/Toolbar/building1x1_hover.png",
             "/asset/Toolbar/building2x2_hover.png",
             "/asset/Toolbar/building2x4_hover.png"
         };

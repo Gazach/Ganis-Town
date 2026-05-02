@@ -1,5 +1,9 @@
 package game;
 
+import java.awt.image.BufferedImage;
+import javax.imageio.ImageIO;
+import java.io.IOException;
+
 public enum BuildingType {
     // bangunan dan ukurannya (width x height dalam tile)
     // tinggal tambahin bangunan baru di enum ini, terus buat gambar normal dan hover nya di Toolbar.java
@@ -9,10 +13,10 @@ public enum BuildingType {
     //   HOUSING  → bangunan tempat tinggal, memberikan populasi (minPeople–maxPeople) per unit, incomePerSecond = 0
     //   PRODUCTION → bangunan produksi, menghasilkan uang per detik, minPeople/maxPeople = 0
     //
-    //                          w  h    price   category                minP maxP maxW income/s
-    HOUSE(          1, 1,   500, BuildingCategory.HOUSING,    2,   4,  0,  0),
-    BUILDING_2X2(   2, 2,  1500, BuildingCategory.PRODUCTION, 0,   0,  4, 10),
-    BUILDING_2X4(   2, 4,  3000, BuildingCategory.PRODUCTION, 0,   0,  6, 25);
+    //                          w  h    price   category                minP maxP maxW income/s  animFrameCount
+    HOUSE(          1, 1,   500, BuildingCategory.HOUSING,    2,   4,  0,  0,  2),
+    BUILDING_2X2(   2, 2,  1500, BuildingCategory.PRODUCTION, 0,   0,  4, 10,  2),
+    BUILDING_2X4(   2, 4,  3000, BuildingCategory.PRODUCTION, 0,   0,  6, 25,  2);
 
     // -------------------------------------------------------------------------
     public enum BuildingCategory {
@@ -29,9 +33,11 @@ public enum BuildingType {
     private final int maxPeople;
     private final int maxWorkers;
     private final int incomePerSecond;
+    private final int animationFrameCount;
+    private BufferedImage[] animationFrames;
 
     BuildingType(int width, int height, int price, BuildingCategory category,
-                 int minPeople, int maxPeople, int maxWorkers, int incomePerSecond) {
+                 int minPeople, int maxPeople, int maxWorkers, int incomePerSecond, int animationFrameCount) {
         this.width          = width;
         this.height         = height;
         this.price          = price;
@@ -40,6 +46,29 @@ public enum BuildingType {
         this.maxPeople      = maxPeople;
         this.maxWorkers     = maxWorkers;
         this.incomePerSecond = incomePerSecond;
+        this.animationFrameCount = animationFrameCount;
+        this.animationFrames = new BufferedImage[animationFrameCount];
+        loadAnimationFrames();
+    }
+
+    private void loadAnimationFrames() { //buat animasi bangunan bisa di load
+        String baseName = this.name().toLowerCase();
+        for (int i = 0; i < animationFrameCount; i++) {
+            try {
+                String resourcePath = "/asset/Buildings/" + baseName + "_frame" + (i + 1) + ".png";
+                var inputStream = BuildingType.class.getResourceAsStream(resourcePath);
+                if (inputStream != null) {
+                    this.animationFrames[i] = ImageIO.read(inputStream);
+                    System.out.println("✓ Loaded animation frame: " + resourcePath);
+                } else {
+                    this.animationFrames[i] = null;
+                    System.out.println("✗ Animation frame not found: " + resourcePath);
+                }
+            } catch (IOException | IllegalArgumentException e) {
+                System.out.println("✗ Error loading animation frame for " + baseName + " frame " + (i + 1) + ": " + e.getMessage());
+                this.animationFrames[i] = null;
+            }
+        }
     }
 
     public int getWidth()            { return width; }
@@ -50,4 +79,6 @@ public enum BuildingType {
     public int getMaxPeople()        { return maxPeople; }
     public int getMaxWorkers()       { return maxWorkers; }
     public int getIncomePerSecond()  { return incomePerSecond; }
+    public int getAnimationFrameCount() { return animationFrameCount; }
+    public BufferedImage[] getAnimationFrames() { return animationFrames; }
 }
