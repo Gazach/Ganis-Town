@@ -28,6 +28,8 @@ import game.BuildingInstance;
 import game.Particle;
 import game.dayCycle;
 import game.worldTemperature;
+import game.Music_audio;
+import game.SoundEffect_audio;
 // load system
 import system.KeyHandler;
 import system.GamePanel;
@@ -91,6 +93,10 @@ public class Gameplay {
     // Sistem particle untuk efek asap
     private List<Particle> activeParticles = new ArrayList<>();
 
+    // Audio
+    private Music_audio bgMusic;
+    private SoundEffect_audio placeSFX;
+
     // konstanta untuk layout panel info detail bangunan, untuk memudahkan penyesuaian tampilan
     private static final int BUILDING_INFO_PANEL_TOP_BOTTOM_MARGIN = 40;
     private static final int BUILDING_INFO_PANEL_RIGHT_MARGIN = 0;
@@ -120,6 +126,8 @@ public class Gameplay {
         loadCoinImage();
         loadPersonImage();
         buildGlowImage();
+        bgMusic  = new Music_audio("/asset/Sound/Music/Jazz_background_music.wav");
+        placeSFX = new SoundEffect_audio("/asset/Sound/SoundEffect/Building_placement.wav");
     }
 
     private void cacheMaxBuildingDimensions() {
@@ -217,6 +225,7 @@ public class Gameplay {
         cachedTotalPopulation = 0;
         incomeAccumulator = 0.0;
         resetBuildModeState();
+        bgMusic.play();
     }
 
     // Method untuk reset state terkait build mode, dipanggil saat start new game atau load game, untuk memastikan state build mode bersih dan konsisten
@@ -364,6 +373,7 @@ public class Gameplay {
         }
         nextPlacementOrder = maxOrder + 1;
         recalcIncomeCache();
+        bgMusic.play();
     }
 
     // Method untuk save world map ke save file, dipanggil saat player save game atau auto-save
@@ -402,7 +412,7 @@ public class Gameplay {
             
             // ✅ Spawn efek asap saat bangunan ditempatkan
             spawnSmokeEffect(gridX, gridY, building);
-            
+            placeSFX.play();
             saveGame();
         }
     }
