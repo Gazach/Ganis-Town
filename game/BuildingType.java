@@ -14,10 +14,10 @@ public enum BuildingType {
     //   PRODUCTION → bangunan produksi, menghasilkan uang per detik, minPeople/maxPeople = 0
     //
     //                          w  h    price   category                minP maxP maxW income/s  animFrameCount  animSpeed (ticks/frame)
-    HOUSE(          1, 1,   500, BuildingCategory.HOUSING,    2,   4,  0,  0,  0,  1),
+    BUILDING_1X1(          1, 1,   500, BuildingCategory.HOUSING,    2,   4,  0,  0,  0,  1),
     BUILDING_2X2(   2, 2,  1500, BuildingCategory.PRODUCTION, 0,   0,  4, 10,  5,  12),  // 60/6 = 10 fps
-    BUILDING_2X4(   2, 3,  3000, BuildingCategory.PRODUCTION, 0,   0,  6, 25,  3,  6);  // 60/6 = 10 fps
-
+    BUILDING_2X3(   2, 3,  3000, BuildingCategory.PRODUCTION, 0,   0,  6, 25,  3,  6),  // 60/6 = 10 fps
+    BUILDING_2X4(   2, 4,  2000, BuildingCategory.PRODUCTION, 0,   0,  4, 10,  5,  12);
     // -------------------------------------------------------------------------
     public enum BuildingCategory {
         HOUSING,

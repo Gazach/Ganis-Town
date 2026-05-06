@@ -790,7 +790,7 @@ public class Gameplay {
 
         g2.setColor(canPlace ? new Color(90, 255, 90, 220) : new Color(255, 80, 80, 220));
         g2.drawRect(screenX, screenY, drawWidth, drawHeight);
-    }//gaza kjembut
+    }
 
     // Method untuk menggambar UI detail bangunan yang sedang dipilih, muncul di sebelah kanan layar saat ada bangunan yang dipilih, menampilkan nama, tipe, ukuran, dan opsi untuk edit nama
     private void drawBuildingDetailUI(Graphics2D g2){
