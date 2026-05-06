@@ -15,7 +15,7 @@ package system;
 public class Audio {
 
     private static float masterVolume = 1.0f;
-    private static float musicVolume  = 0.2f;
+    private static float musicVolume  = 0.1f;
     private static float sfxVolume    = 1.2f;
 
     // --- Setters ---
