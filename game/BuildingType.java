@@ -15,8 +15,13 @@ public enum BuildingType {
 
     //                  w          h        price        category                    minP            maxP         maxW income/s  animFrameCount  animSpeed  assetName
     HOUSE(          1, 1,   500, BuildingCategory.HOUSING,    2,   4,  0,  0,  0,  1,  "building_1x1"),
+<<<<<<< HEAD
     WHEAT(          2, 2,   800, BuildingCategory.HOUSING,    0,   8,  4,  10,  8,  12,  "wheat"),
     BUILDING_2X2(   2, 2,  1500, BuildingCategory.PRODUCTION, 0,   0,  4, 10,  11,  12, "building_2x2"),  // 60/6 = 10 fps
+=======
+    WHEAT(          2, 2,   800, BuildingCategory.HOUSING,    4,   8,  0,  0,  5,  12, "wheat"),
+    BUILDING_2X2(   2, 2,  1500, BuildingCategory.PRODUCTION, 0,   0,  4, 10,  5,  12, "building_2x2"),  // 60/6 = 10 fps
+>>>>>>> c4b2a3b9cd2579a86c1db50ef85564d60d2853ec
     WINDMILL(       2, 3,  3000, BuildingCategory.PRODUCTION, 0,   0,  6, 25,  3,  6,  "windmill"),       // 60/6 = 10 fps
     BARN(           2, 4,  2000, BuildingCategory.PRODUCTION, 0,   0,  4, 10,  5,  12, "barn");
     // -------------------------------------------------------------------------
