@@ -273,6 +273,12 @@ public class Gameplay {
         }
         
         if (mouseH.consumeLeftClick()) { // handle left click untuk interaksi, seperti klik toolbar atau tempatin bangunan di map
+            // Reset drag so stale isDragging=true from a missed mouseReleased event can't corrupt world coordinates
+            isDragging = false;
+            dragStartMouseX = mouseH.mouseX;
+            dragStartMouseY = mouseH.mouseY;
+            dragStartCameraX = gp.cameraWorldX;
+            dragStartCameraY = gp.cameraWorldY;
             if (toolbar.handleDeleteButtonClick(mouseH.mouseX, mouseH.mouseY, screenWidth, screenHeight, this)) {
                 finishTitleEditingAndSave();
                 selectedBuildingInfo = null;
