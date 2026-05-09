@@ -96,6 +96,7 @@ public class Gameplay {
     // Audio
     private Music_audio bgMusic;
     private SoundEffect_audio placeSFX;
+    private SoundEffect_audio destroySFX;
 
     // konstanta untuk layout panel info detail bangunan, untuk memudahkan penyesuaian tampilan
     private static final int BUILDING_INFO_PANEL_TOP_BOTTOM_MARGIN = 40;
@@ -126,8 +127,9 @@ public class Gameplay {
         loadCoinImage();
         loadPersonImage();
         buildGlowImage();
-        bgMusic  = new Music_audio("/asset/Sound/Music/Jazz_background_music.wav");
-        placeSFX = new SoundEffect_audio("/asset/Sound/SoundEffect/Building_placement.wav");
+        bgMusic    = new Music_audio("/asset/Sound/Music/Jazz_background_music.wav");
+        placeSFX   = new SoundEffect_audio("/asset/Sound/SoundEffect/Building_placement.wav");
+        destroySFX = new SoundEffect_audio("/asset/Sound/SoundEffect/Destroyed_building.wav");
     }
 
     private void cacheMaxBuildingDimensions() {
@@ -271,15 +273,22 @@ public class Gameplay {
         }
         
         if (mouseH.consumeLeftClick()) { // handle left click untuk interaksi, seperti klik toolbar atau tempatin bangunan di map
-            if (toolbar.isInsideToolbar(mouseH.mouseY, screenHeight)) {
+            if (toolbar.handleDeleteButtonClick(mouseH.mouseX, mouseH.mouseY, screenWidth, screenHeight, this)) {
+                finishTitleEditingAndSave();
+                selectedBuildingInfo = null;
+            } else if (toolbar.isInsideToolbar(mouseH.mouseY, screenHeight)) {
                 finishTitleEditingAndSave();
                 toolbar.handleClick(mouseH.mouseX, mouseH.mouseY, screenHeight, this);
-            } else if (isInsideBuildingDetailPanel(mouseH.mouseX, mouseH.mouseY)) {
+            } else if (!toolbar.isDeleteMode() && isInsideBuildingDetailPanel(mouseH.mouseX, mouseH.mouseY)) {
                 if (selectedBuildingInfo != null && isInsideBuildingTitleEditArea(mouseH.mouseX, mouseH.mouseY)) {
                     startTitleEditing();
                 } else {
                     finishTitleEditingAndSave();
                 }
+            } else if (showGrid && toolbar.isDeleteMode()) {
+                int worldX = screenToWorldX(mouseH.mouseX);
+                int worldY = screenToWorldY(mouseH.mouseY);
+                deleteBuilding(worldX, worldY);
             } else if (showGrid && toolbar.getSelectedBuilding() != null) {
                 finishTitleEditingAndSave();
                 int worldX = screenToWorldX(mouseH.mouseX);
@@ -420,16 +429,12 @@ public class Gameplay {
     private void spawnSmokeEffect(int gridX, int gridY, BuildingType building) {
         // Titik spawn = tengah horizontal, sedikit di ATAS bagian bawah bangunan
         float worldCenterX = (gridX + building.getWidth() / 2f) * tileSize;
-        float worldBottomY = (gridY + building.getHeight()) * tileSize;  // Bagian bawah bangunan
-        float spawnOffsetY = worldBottomY - 12;  // Spawn 12 pixel di atas bagian bawah
-
-        // Konversi ke screen coordinate
-        float screenX = worldCenterX - gp.cameraWorldX + gp.besarLayar / 2f;
-        float screenY = spawnOffsetY - gp.cameraWorldY + gp.tinggiLayar / 2f;
+        float worldBottomY = (gridY + building.getHeight()) * tileSize;
+        float spawnY = worldBottomY - 12;
 
         int jumlahPartikel = 18 + (building.getWidth() * building.getHeight() * 3);
         for (int i = 0; i < jumlahPartikel; i++) {
-            activeParticles.add(new Particle(screenX, screenY));
+            activeParticles.add(new Particle(worldCenterX, spawnY));
         }
     }
 
@@ -470,7 +475,8 @@ public class Gameplay {
         endX = Math.min(gp.maxWorldCol, endX);
         endY = Math.min(gp.maxWorldRow, endY);
 
-        g2.setColor(new java.awt.Color(255, 255, 255, 100)); // semi-transparent white
+        boolean inDeleteMode = toolbar.isDeleteMode();
+        g2.setColor(inDeleteMode ? new java.awt.Color(255, 60, 60, 110) : new java.awt.Color(255, 255, 255, 100)); // red in delete mode, white in build mode
         g2.setStroke(new java.awt.BasicStroke(1));
 
         // Draw vertical lines
@@ -1175,7 +1181,7 @@ public class Gameplay {
 
         // ✅ Gambar asep di sini, di atas bangunan
         for (Particle p : activeParticles) {
-            p.draw(g2);
+            p.draw(g2, gp.cameraWorldX, gp.cameraWorldY, gp.besarLayar / 2, gp.tinggiLayar / 2);
         }
 
         drawDayNightOverlay(g2); // gambar overlay siang/malam
@@ -1185,6 +1191,7 @@ public class Gameplay {
         drawGrid(g2); // gambar grid di atas tile
 
         drawBuildingPreview(g2); // gambar preview saat mau menaruh bangunan
+        drawDeleteModePreview(g2); // gambar highlight merah bangunan yang akan dihapus
 
         // gambar toolbar di atas semua layer lain, jadi selalu terlihat
         toolbar.draw(g2, screenWidth, screenHeight, mouseH.mouseX, mouseH.mouseY, this);
@@ -1357,5 +1364,110 @@ public class Gameplay {
         Player_SaveFile.savePlayerData(playerMoney);
         Player_SaveFile.saveDayTime(dayTime.getHour());
         Player_SaveFile.saveTemperature(temperature.getDailyHigh(), temperature.getDailyLow());
+    }
+
+    // Cari posisi anchor (grid kiri-atas) dari sebuah BuildingInstance di buildingDataMap
+    private int[] findAnchorGridFor(BuildingInstance target) {
+        for (int x = 0; x < gp.maxWorldCol; x++) {
+            for (int y = 0; y < gp.maxWorldRow; y++) {
+                if (buildingDataMap[x][y] == target) {
+                    return new int[]{x, y};
+                }
+            }
+        }
+        return null;
+    }
+
+    // Hapus bangunan di koordinat dunia tertentu; biaya demolisi = 1.5x harga bangunan
+    public void deleteBuilding(int worldX, int worldY) {
+        BuildingInstance inst = findBuildingAtWorld(worldX, worldY);
+        if (inst == null) return;
+
+        int[] anchor = findAnchorGridFor(inst);
+        if (anchor == null) return;
+
+        int anchorX = anchor[0];
+        int anchorY = anchor[1];
+        BuildingType btype = inst.getType();
+
+        int demolishCost = (int)(btype.getPrice() * 1.5);
+        if (playerMoney < demolishCost) return;
+
+        playerMoney -= demolishCost;
+        buildingDataMap[anchorX][anchorY] = null;
+        buildingsMap[anchorX][anchorY] = null;
+        markBuildingOccupied(anchorX, anchorY, btype, false);
+
+        if (selectedBuildingInfo == inst) {
+            selectedBuildingInfo = null;
+            isEditingBuildingTitle = false;
+            buildingTitleDraft = "";
+        }
+
+        recalcIncomeCache();
+        spawnDestructionEffect(anchorX, anchorY, btype);
+        if (destroySFX != null) destroySFX.play();
+        saveGame();
+    }
+
+    private void spawnDestructionEffect(int gridX, int gridY, BuildingType building) {
+        float worldCenterX = (gridX + building.getWidth() / 2f) * tileSize;
+        float worldMidY    = (gridY + building.getHeight() / 2f) * tileSize;
+
+        int count = 35 + (building.getWidth() * building.getHeight() * 6);
+        for (int i = 0; i < count; i++) {
+            float offsetX = (float)(Math.random() * building.getWidth()  * tileSize) - building.getWidth()  * tileSize / 2f;
+            float offsetY = (float)(Math.random() * building.getHeight() * tileSize) - building.getHeight() * tileSize / 2f;
+            activeParticles.add(new Particle(worldCenterX + offsetX, worldMidY + offsetY, true));
+        }
+    }
+
+    // Gambar highlight merah + biaya demolisi di atas bangunan yang di-hover saat mode hapus aktif
+    private void drawDeleteModePreview(Graphics2D g2) {
+        if (!toolbar.isDeleteMode() || !showGrid) return;
+        if (toolbar.isInsideToolbar(mouseH.mouseY, screenHeight)) return;
+
+        int worldX = screenToWorldX(mouseH.mouseX);
+        int worldY = screenToWorldY(mouseH.mouseY);
+        BuildingInstance hovered = findBuildingAtWorld(worldX, worldY);
+        if (hovered == null) return;
+
+        int[] anchor = findAnchorGridFor(hovered);
+        if (anchor == null) return;
+
+        int anchorX = anchor[0];
+        int anchorY = anchor[1];
+        BuildingType btype = hovered.getType();
+
+        int screenX  = anchorX * tileSize - gp.cameraWorldX + gp.besarLayar / 2;
+        int screenY  = anchorY * tileSize - gp.cameraWorldY + gp.tinggiLayar / 2;
+        int drawWidth  = tileSize * btype.getWidth();
+        int drawHeight = tileSize * btype.getHeight();
+
+        // Semi-transparent red fill over entire building footprint
+        java.awt.Composite old = g2.getComposite();
+        g2.setComposite(AlphaComposite.getInstance(AlphaComposite.SRC_OVER, 0.55f));
+        g2.setColor(new Color(220, 30, 30));
+        g2.fillRect(screenX, screenY, drawWidth, drawHeight);
+        g2.setComposite(old);
+
+        // Bright red border
+        Stroke oldStroke = g2.getStroke();
+        g2.setColor(new Color(255, 60, 60));
+        g2.setStroke(new BasicStroke(2.5f));
+        g2.drawRect(screenX, screenY, drawWidth, drawHeight);
+        g2.setStroke(oldStroke);
+
+        // Demolition cost text above building
+        int demolishCost = (int)(btype.getPrice() * 1.5);
+        boolean canAfford = playerMoney >= demolishCost;
+        String costText = "-" + formatMoney(demolishCost);
+        g2.setFont(hudFont != null ? hudFont : new Font("Dialog", Font.BOLD, 17));
+        int textW = g2.getFontMetrics().stringWidth(costText);
+        int textX = screenX + drawWidth / 2 - textW / 2;
+        int textY = screenY - 6;
+        Color fillColor   = canAfford ? new Color(255, 80, 80) : new Color(255, 40, 40);
+        Color strokeColor = new Color(100, 0, 0, 230);
+        drawStrokedText(g2, costText, textX, textY, fillColor, strokeColor, 2.5f);
     }
 }

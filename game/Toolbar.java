@@ -19,6 +19,8 @@ public class Toolbar {
     private BuildingType selectedBuilding = null;
     private panel toolbarPanel;
     private tooltips_toolbar tooltip;
+    private BufferedImage trashNormal, trashHover, trashPress;
+    private boolean isDeleteMode = false;
     
     int toolbarHeight = 80;
     int btnSize = 64;
@@ -55,6 +57,13 @@ public class Toolbar {
         for (int i = 0; i < total; i++) {
             btnNormal[i] = loadImage(normalImages[i]);
             btnHover[i] = loadImage(hoverImages[i]);
+        }
+        try {
+            trashNormal = loadImage("/asset/gameplayUI/Trash_button.png");
+            trashHover  = loadImage("/asset/gameplayUI/Trash_button_hover.png");
+            trashPress  = loadImage("/asset/gameplayUI/Trash_button_press.png");
+        } catch (Exception e) {
+            System.out.println("Failed to load trash button images: " + e.getMessage());
         }
     }
 
@@ -97,6 +106,17 @@ public class Toolbar {
             button.drawButton(g2, btnNormal[i], btnHover[i], x, y, btnSize, btnSize, mouseX, mouseY);
         }
 
+        // Draw trash/delete button — above toolbar, right side
+        int trashX = screenWidth - btnSize - btnPadding;
+        int trashY = screenHeight - toolbarHeight - btnSize - btnPadding;
+        if (trashNormal != null) {
+            button.drawButton(g2,
+                trashNormal,
+                trashHover != null ? trashHover : trashNormal,
+                trashPress != null ? trashPress : trashNormal,
+                trashX, trashY, btnSize, btnSize, mouseX, mouseY, isDeleteMode);
+        }
+
         // Draw tooltip for whichever button is currently hovered
         BuildingType[] buildings = BuildingType.values();
         for (int i = 0; i < buildings.length; i++) {
@@ -112,6 +132,7 @@ public class Toolbar {
     public void handleClick(int mouseX, int mouseY, int screenHeight, Gameplay gameplay) {
         BuildingType clicked = getClickedBuilding(mouseX, mouseY, screenHeight);
         if (clicked != null) {
+            isDeleteMode = false; // exit delete mode when a building is selected
             boolean isSameSelection = (selectedBuilding == clicked);
             if (isSameSelection) {
                 selectedBuilding = null;
@@ -133,6 +154,23 @@ public class Toolbar {
 
     public void clearSelection() {
         selectedBuilding = null;
+        isDeleteMode = false;
+    }
+
+    public boolean isDeleteMode() { return isDeleteMode; }
+
+    public boolean handleDeleteButtonClick(int mouseX, int mouseY, int screenWidth, int screenHeight, Gameplay gameplay) {
+        int x = screenWidth - btnSize - btnPadding;
+        int y = screenHeight - toolbarHeight - btnSize - btnPadding;
+        if (!button.isHovering(x, y, btnSize, btnSize, mouseX, mouseY)) return false;
+        isDeleteMode = !isDeleteMode;
+        if (isDeleteMode) {
+            selectedBuilding = null;
+            if (!gameplay.isGridVisible()) gameplay.toggleGrid();
+        } else {
+            if (gameplay.isGridVisible()) gameplay.toggleGrid();
+        }
+        return true;
     }
 
     public BufferedImage getBuildingImage(BuildingType building) {
