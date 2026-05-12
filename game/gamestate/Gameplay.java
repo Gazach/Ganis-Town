@@ -27,6 +27,7 @@ import java.util.Random;
 import java.util.Set;
 
 import game.Alert;
+import game.NpcSpawn;
 import game.Toolbar;
 import game.BuildingType;
 import game.BuildingInstance;
@@ -115,6 +116,9 @@ public class Gameplay {
     private SoundEffect_audio placeSFX;
     private SoundEffect_audio destroySFX;
 
+    // NPC pedestrian system
+    private NpcSpawn npcSystem;
+
     // Road placement system
     private boolean isRoadDragging = false;
     private int roadStartGridX = -1, roadStartGridY = -1;
@@ -157,6 +161,7 @@ public class Gameplay {
         destroySFX = new SoundEffect_audio("/asset/Sound/SoundEffect/Destroyed_building.wav");
         loadRoadImage();
         loadAlertImages();
+        npcSystem = new NpcSpawn(tileSize);
     }
 
     private void cacheMaxBuildingDimensions() {
@@ -269,6 +274,7 @@ public class Gameplay {
         cachedTotalIncome = 0.0;
         cachedTotalPopulation = 0;
         incomeAccumulator = 0.0;
+        npcSystem.clear();
         resetBuildModeState();
         bgMusic.play();
     }
@@ -398,6 +404,7 @@ public class Gameplay {
         dayTime.update();
         temperature.update(dayTime.getHour());
         tickBuildingIncome();
+        npcSystem.update();
     }
 
     // Setiap detik, kumpulkan income dari semua bangunan yang sudah ditempatkan
@@ -1426,6 +1433,10 @@ public class Gameplay {
 
         drawBuildings(g2); // gambar bangunan di atas terrain
 
+        // Gambar NPC pedestrians di atas jalan, sebelum night overlay agar ikut ter-dim
+        npcSystem.draw(g2, gp.cameraWorldX, gp.cameraWorldY,
+                gp.besarLayar / 2, gp.tinggiLayar / 2, screenWidth, screenHeight);
+
         // ✅ Gambar asep di sini, di atas bangunan
         for (Particle p : activeParticles) {
             p.draw(g2, gp.cameraWorldX, gp.cameraWorldY, gp.besarLayar / 2, gp.tinggiLayar / 2);
@@ -1534,6 +1545,10 @@ public class Gameplay {
             effectiveIncome += Math.floor(localRatio * prod.getType().getIncomePerSecond() * cachedTempEfficiency * 10.0) / 10.0;
         }
         cachedTotalIncome = effectiveIncome;
+
+        // Sync NPC count (75% of population) and road tile list after every recalc
+        npcSystem.rebuildRoadList(buildingsMap, gp.maxWorldCol, gp.maxWorldRow);
+        npcSystem.syncNpcCount(cachedTotalPopulation);
     }
 
     // Returns a 0.3–1.0 efficiency multiplier based on current temperature.

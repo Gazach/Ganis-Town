@@ -12,7 +12,7 @@ public enum BuildingType {
     // Kategori:
     //   HOUSING  → bangunan tempat tinggal, memberikan populasi (minPeople–maxPeople) per unit, incomePerSecond = 0
     //   PRODUCTION → bangunan produksi, menghasilkan uang per detik, minPeople/maxPeople = 0
-
+    //  PATH     → jalan, tidak memberikan populasi atau uang, tapi diperlukan untuk akses pekerja dan konektivitas
     //                  w          h        price        category                    minP            maxP         maxW income/s  animFrameCount  animSpeed  assetName
     HOUSE(          1, 1,   500, BuildingCategory.HOUSING,    2,   4,  0,  0,  0,  1,  "building_1x1"),
     WHEAT(          2, 2,   4000, BuildingCategory.PRODUCTION,    0,   0,  10,  30,  5,  12, "wheat"),
