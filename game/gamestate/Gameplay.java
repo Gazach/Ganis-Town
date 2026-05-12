@@ -91,6 +91,8 @@ public class Gameplay {
     private BufferedImage buildingGlowImage;
     // Road connected-components (rebuilt when buildings change)
     private int[][] roadComponentMap;
+    // Temperature efficiency cached each recalc (0.3 – 1.0)
+    private double cachedTempEfficiency = 1.0;
 
     // Alert icons and animation
     private BufferedImage alertNeedWorkerImage;
@@ -1140,7 +1142,14 @@ public class Gameplay {
             int effectiveWorkers = cachedWorkerMap.getOrDefault(selectedBuildingInfo, 0);
 
             double localRatio = maxWorkers > 0 ? (double) effectiveWorkers / maxWorkers : 0.0;
-            double effectiveIncome = Math.floor(localRatio * maxIncome * 10.0) / 10.0;
+            double effectiveIncome = Math.floor(localRatio * maxIncome * cachedTempEfficiency * 10.0) / 10.0;
+
+            // Temperature efficiency label (only show when not at 100%)
+            int tempPct = (int) Math.round(cachedTempEfficiency * 100);
+            Color tempColor = tempPct >= 100 ? new Color(150, 200, 150)
+                            : tempPct >= 70  ? new Color(255, 200, 80)
+                            : new Color(255, 80, 80);
+            String tempLabel = "Temp effect: " + tempPct + "%";
 
             drawStrokedText(
                 g2,
@@ -1166,6 +1175,15 @@ public class Gameplay {
                 textX,
                 bodyY + 72,
                 new Color(150, 200, 150),
+                new Color(8, 8, 8, 220),
+                1.5f
+            );
+            drawStrokedText(
+                g2,
+                tempLabel,
+                textX,
+                bodyY + 90,
+                tempColor,
                 new Color(8, 8, 8, 220),
                 1.5f
             );
@@ -1435,6 +1453,7 @@ public class Gameplay {
     }
     private void recalcIncomeCache() {
         rebuildRoadComponents();
+        cachedTempEfficiency = getTemperatureEfficiency();
         cachedTotalPopulation = getTotalPopulation();
 
         // ── Collect housing buildings and their grid anchors ─────────────────
@@ -1512,9 +1531,28 @@ public class Gameplay {
 
             cachedWorkerMap.put(prod, workersAssigned);
             double localRatio = maxW > 0 ? (double) workersAssigned / maxW : 0.0;
-            effectiveIncome += Math.floor(localRatio * prod.getType().getIncomePerSecond() * 10.0) / 10.0;
+            effectiveIncome += Math.floor(localRatio * prod.getType().getIncomePerSecond() * cachedTempEfficiency * 10.0) / 10.0;
         }
         cachedTotalIncome = effectiveIncome;
+    }
+
+    // Returns a 0.3–1.0 efficiency multiplier based on current temperature.
+    // Optimal range 16–28 °C → 1.0; ramps to 0.3 at extremes (10 °C and 40 °C).
+    private double getTemperatureEfficiency() {
+        float temp = temperature.getCurrentTemp(dayTime.getHour());
+        final float COLD_OPTIMAL = 16f;
+        final float HOT_OPTIMAL  = 28f;
+        final float COLD_MIN     = 10f;
+        final float HOT_MAX      = 40f;
+        final double MIN_EFF     = 0.3;
+        if (temp < COLD_OPTIMAL) {
+            double t = Math.max(0.0, (temp - COLD_MIN) / (COLD_OPTIMAL - COLD_MIN));
+            return MIN_EFF + (1.0 - MIN_EFF) * t;
+        } else if (temp > HOT_OPTIMAL) {
+            double t = Math.max(0.0, 1.0 - (temp - HOT_OPTIMAL) / (HOT_MAX - HOT_OPTIMAL));
+            return MIN_EFF + (1.0 - MIN_EFF) * t;
+        }
+        return 1.0;
     }
 
     // Method untuk menghitung total populasi dari semua bangunan HOUSING yang sudah ditempatkan
