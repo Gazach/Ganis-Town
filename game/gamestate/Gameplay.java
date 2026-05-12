@@ -16,12 +16,17 @@ import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
 import javax.imageio.ImageIO;
+import java.util.ArrayDeque;
 import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Random;
 import java.util.Set;
 
+import game.Alert;
 import game.Toolbar;
 import game.BuildingType;
 import game.BuildingInstance;
@@ -80,9 +85,18 @@ public class Gameplay {
     private double cachedTotalIncome = 0.0;
     private int cachedTotalPopulation = 0;
     private double incomeAccumulator = 0.0;
+    private Map<BuildingInstance, Integer> cachedWorkerMap = new HashMap<>();
     private static final Random rng = new Random();
     private int nextPlacementOrder = 0;
     private BufferedImage buildingGlowImage;
+    // Road connected-components (rebuilt when buildings change)
+    private int[][] roadComponentMap;
+
+    // Alert icons and animation
+    private BufferedImage alertNeedWorkerImage;
+    private BufferedImage alertNeedRoadImage;
+    private int alertAnimTick = 0;
+    private static final int ALERT_ICON_SIZE = 66;
     private Font hudFont;
     private Font detailTitleFontCached;
     private Font detailBodyFontCached;
@@ -140,6 +154,7 @@ public class Gameplay {
         placeSFX   = new SoundEffect_audio("/asset/Sound/SoundEffect/Building_placement.wav");
         destroySFX = new SoundEffect_audio("/asset/Sound/SoundEffect/Destroyed_building.wav");
         loadRoadImage();
+        loadAlertImages();
     }
 
     private void cacheMaxBuildingDimensions() {
@@ -267,6 +282,7 @@ public class Gameplay {
     public void updateGameplay(){ // Update untuk Logic gameplay, seperti input, movement, dll
         // Update animation counter
         buildingAnimationCounter++;
+        alertAnimTick++;
 
         // ✅ Update partikel, hapus yang sudah mati
         activeParticles.removeIf(p -> !p.update());
@@ -1121,28 +1137,7 @@ public class Gameplay {
             int maxWorkers = btype.getMaxWorkers();
             int maxIncome  = btype.getIncomePerSecond();
 
-            // Collect and sort production buildings by placement order (same as recalcIncomeCache)
-            List<BuildingInstance> prodList = new ArrayList<>();
-            for (int x = 0; x < gp.maxWorldCol; x++) {
-                for (int y = 0; y < gp.maxWorldRow; y++) {
-                    BuildingInstance inst = buildingDataMap[x][y];
-                    if (inst != null && inst.getType().getCategory() == BuildingType.BuildingCategory.PRODUCTION) {
-                        prodList.add(inst);
-                    }
-                }
-            }
-            prodList.sort((a, b) -> Integer.compare(a.getPlacementOrder(), b.getPlacementOrder()));
-
-            int remainingPop = cachedTotalPopulation;
-            int effectiveWorkers = 0;
-            for (BuildingInstance inst : prodList) {
-                int workers = Math.min(remainingPop, inst.getType().getMaxWorkers());
-                remainingPop -= workers;
-                if (inst == selectedBuildingInfo) {
-                    effectiveWorkers = workers;
-                    break;
-                }
-            }
+            int effectiveWorkers = cachedWorkerMap.getOrDefault(selectedBuildingInfo, 0);
 
             double localRatio = maxWorkers > 0 ? (double) effectiveWorkers / maxWorkers : 0.0;
             double effectiveIncome = Math.floor(localRatio * maxIncome * 10.0) / 10.0;
@@ -1428,6 +1423,8 @@ public class Gameplay {
         drawRoadPreview(g2);     // gambar preview jalur road saat mode jalan aktif
         drawDeleteModePreview(g2); // gambar highlight merah bangunan yang akan dihapus
 
+        drawBuildingAlerts(g2);    // gambar ikon alert di atas bangunan yang butuh perhatian
+
         // gambar toolbar di atas semua layer lain, jadi selalu terlihat
         toolbar.draw(g2, screenWidth, screenHeight, mouseH.mouseX, mouseH.mouseY, this);
 
@@ -1437,29 +1434,85 @@ public class Gameplay {
         drawPlayerHUD(g2);
     }
     private void recalcIncomeCache() {
+        rebuildRoadComponents();
         cachedTotalPopulation = getTotalPopulation();
 
-        // Collect production buildings and sort by placement order so workers
-        // prioritize the first-placed building.
+        // ── Collect housing buildings and their grid anchors ─────────────────
+        List<int[]> housingAnchors = new ArrayList<>();
+        List<BuildingInstance> housingInsts = new ArrayList<>();
+        for (int x = 0; x < gp.maxWorldCol; x++) {
+            for (int y = 0; y < gp.maxWorldRow; y++) {
+                BuildingInstance inst = buildingDataMap[x][y];
+                if (inst != null
+                        && inst.getType().getCategory() == BuildingType.BuildingCategory.HOUSING
+                        && inst.getPopulation() > 0) {
+                    housingAnchors.add(new int[]{x, y});
+                    housingInsts.add(inst);
+                }
+            }
+        }
+        // Sort housing by placement order for deterministic distribution
+        Integer[] housingOrder = new Integer[housingInsts.size()];
+        for (int i = 0; i < housingOrder.length; i++) housingOrder[i] = i;
+        Arrays.sort(housingOrder, (a, b) -> Integer.compare(
+            housingInsts.get(a).getPlacementOrder(), housingInsts.get(b).getPlacementOrder()));
+        int[] housingRemaining = new int[housingInsts.size()];
+        for (int i = 0; i < housingInsts.size(); i++)
+            housingRemaining[i] = housingInsts.get(i).getPopulation();
+
+        // ── Collect production buildings sorted by placement order ─────────
         List<BuildingInstance> prodList = new ArrayList<>();
+        List<int[]> prodAnchors = new ArrayList<>();
         for (int x = 0; x < gp.maxWorldCol; x++) {
             for (int y = 0; y < gp.maxWorldRow; y++) {
                 BuildingInstance inst = buildingDataMap[x][y];
                 if (inst != null && inst.getType().getCategory() == BuildingType.BuildingCategory.PRODUCTION) {
                     prodList.add(inst);
+                    prodAnchors.add(new int[]{x, y});
                 }
             }
         }
-        prodList.sort((a, b) -> Integer.compare(a.getPlacementOrder(), b.getPlacementOrder()));
+        Integer[] prodOrder = new Integer[prodList.size()];
+        for (int i = 0; i < prodOrder.length; i++) prodOrder[i] = i;
+        Arrays.sort(prodOrder, (a, b) -> Integer.compare(
+            prodList.get(a).getPlacementOrder(), prodList.get(b).getPlacementOrder()));
 
-        int remainingPop = cachedTotalPopulation;
+        // ── Distribute workers via road connectivity ───────────────────────
+        cachedWorkerMap.clear();
         double effectiveIncome = 0.0;
-        for (BuildingInstance inst : prodList) {
-            int maxW = inst.getType().getMaxWorkers();
-            int workers = Math.min(remainingPop, maxW);
-            remainingPop -= workers;
-            double localRatio = maxW > 0 ? (double) workers / maxW : 0.0;
-            effectiveIncome += Math.floor(localRatio * inst.getType().getIncomePerSecond() * 10.0) / 10.0;
+
+        for (int pi : prodOrder) {
+            BuildingInstance prod = prodList.get(pi);
+            int[] pAnchor = prodAnchors.get(pi);
+            int maxW = prod.getType().getMaxWorkers();
+
+            Set<Integer> prodComps = getBuildingRoadComponents(
+                pAnchor[0], pAnchor[1], prod.getType());
+
+            int workersAssigned = 0;
+            if (!prodComps.isEmpty()) {
+                int workersNeeded = maxW;
+                for (int hi : housingOrder) {
+                    if (workersNeeded <= 0) break;
+                    if (housingRemaining[hi] <= 0) continue;
+                    Set<Integer> hComps = getBuildingRoadComponents(
+                        housingAnchors.get(hi)[0], housingAnchors.get(hi)[1],
+                        housingInsts.get(hi).getType());
+                    boolean connected = false;
+                    for (int comp : hComps) {
+                        if (prodComps.contains(comp)) { connected = true; break; }
+                    }
+                    if (!connected) continue;
+                    int take = Math.min(housingRemaining[hi], workersNeeded);
+                    housingRemaining[hi] -= take;
+                    workersAssigned += take;
+                    workersNeeded -= take;
+                }
+            }
+
+            cachedWorkerMap.put(prod, workersAssigned);
+            double localRatio = maxW > 0 ? (double) workersAssigned / maxW : 0.0;
+            effectiveIncome += Math.floor(localRatio * prod.getType().getIncomePerSecond() * 10.0) / 10.0;
         }
         cachedTotalIncome = effectiveIncome;
     }
@@ -1718,5 +1771,240 @@ public class Gameplay {
         Color fillColor   = canAfford ? new Color(255, 80, 80) : new Color(255, 40, 40);
         Color strokeColor = new Color(100, 0, 0, 230);
         drawStrokedText(g2, costText, textX, textY, fillColor, strokeColor, 2.5f);
+    }
+
+    // -------------------------------------------------------------------------
+    // Building Alert System
+    // -------------------------------------------------------------------------
+
+    private void loadAlertImages() {
+        alertNeedWorkerImage = loadAlertImage("/asset/Alert/Alert_need_worker.png", "asset/Alert/Alert_need_worker.png");
+        alertNeedRoadImage   = loadAlertImage("/asset/Alert/Alert_need_road.png",   "asset/Alert/Alert_need_road.png");
+    }
+
+    private BufferedImage loadAlertImage(String resourcePath, String filePath) {
+        try {
+            InputStream is = getClass().getResourceAsStream(resourcePath);
+            if (is != null) {
+                System.out.println("✓ Loaded alert image: " + resourcePath);
+                return ImageIO.read(is);
+            }
+            File f = new File(filePath);
+            if (f.exists()) {
+                System.out.println("✓ Loaded alert image (file): " + filePath);
+                return ImageIO.read(f);
+            }
+            System.out.println("✗ Alert image not found: " + filePath);
+        } catch (IOException e) {
+            System.out.println("✗ Failed to load alert image " + filePath + ": " + e.getMessage());
+        }
+        return null;
+    }
+
+    // Returns the list of active alerts for the building anchored at (anchorX, anchorY).
+    private List<Alert> getAlertsForBuilding(int anchorX, int anchorY, BuildingInstance inst) {
+        BuildingType bt = inst.getType();
+        if (bt.getCategory() == BuildingType.BuildingCategory.PATH) return java.util.Collections.emptyList();
+
+        List<Alert> alerts = new ArrayList<>();
+
+        // NEED_WORKER / NOT_ENOUGH_WORKERS: PRODUCTION building with worker shortage
+        if (bt.getCategory() == BuildingType.BuildingCategory.PRODUCTION && bt.getMaxWorkers() > 0) {
+            int effectiveWorkers = cachedWorkerMap.getOrDefault(inst, 0);
+            if (effectiveWorkers == 0) {
+                alerts.add(Alert.NEED_WORKER);
+            } else if (effectiveWorkers < bt.getMaxWorkers()) {
+                alerts.add(Alert.NOT_ENOUGH_WORKERS);
+            }
+        }
+
+        // NEED_ROAD: no road tile adjacent to any tile on the building perimeter
+        if (!hasSurroundingRoad(anchorX, anchorY, bt)) {
+            alerts.add(Alert.NEED_ROAD);
+        }
+
+        return alerts;
+    }
+
+    // Returns true when at least one road (PATH) tile exists directly adjacent to any
+    // side of the building footprint (cardinal directions only, no diagonal corners).
+    private boolean hasSurroundingRoad(int anchorX, int anchorY, BuildingType bt) {
+        int w = bt.getWidth();
+        int h = bt.getHeight();
+        // Top and bottom rows (no corners: x from anchorX to anchorX+w-1)
+        for (int x = anchorX; x < anchorX + w; x++) {
+            if (isRoadAt(x, anchorY - 1)) return true;      // top
+            if (isRoadAt(x, anchorY + h)) return true;      // bottom
+        }
+        // Left and right columns (no corners: y from anchorY to anchorY+h-1)
+        for (int y = anchorY; y < anchorY + h; y++) {
+            if (isRoadAt(anchorX - 1, y)) return true;      // left
+            if (isRoadAt(anchorX + w, y)) return true;      // right
+        }
+        return false;
+    }
+
+    private boolean isRoadAt(int gx, int gy) {
+        if (gx < 0 || gx >= gp.maxWorldCol || gy < 0 || gy >= gp.maxWorldRow) return false;
+        BuildingType t = buildingsMap[gx][gy];
+        return t != null && t.getCategory() == BuildingType.BuildingCategory.PATH;
+    }
+
+    // ── Road connected-component methods ─────────────────────────────────────
+
+    // BFS flood-fill that labels every road tile with a component ID.
+    // Rebuilt whenever buildings are placed or removed.
+    private void rebuildRoadComponents() {
+        if (roadComponentMap == null
+                || roadComponentMap.length    != gp.maxWorldCol
+                || roadComponentMap[0].length != gp.maxWorldRow) {
+            roadComponentMap = new int[gp.maxWorldCol][gp.maxWorldRow];
+        }
+        for (int[] row : roadComponentMap) Arrays.fill(row, -1);
+        int componentId = 0;
+        for (int x = 0; x < gp.maxWorldCol; x++) {
+            for (int y = 0; y < gp.maxWorldRow; y++) {
+                if (roadComponentMap[x][y] == -1 && isRoadAt(x, y)) {
+                    floodFillRoad(x, y, componentId++);
+                }
+            }
+        }
+    }
+
+    private void floodFillRoad(int startX, int startY, int id) {
+        ArrayDeque<int[]> queue = new ArrayDeque<>();
+        queue.add(new int[]{startX, startY});
+        roadComponentMap[startX][startY] = id;
+        int[] dx = {0, 0, 1, -1};
+        int[] dy = {1, -1, 0, 0};
+        while (!queue.isEmpty()) {
+            int[] cur = queue.poll();
+            for (int d = 0; d < 4; d++) {
+                int nx = cur[0] + dx[d];
+                int ny = cur[1] + dy[d];
+                if (nx >= 0 && nx < gp.maxWorldCol && ny >= 0 && ny < gp.maxWorldRow
+                        && roadComponentMap[nx][ny] == -1 && isRoadAt(nx, ny)) {
+                    roadComponentMap[nx][ny] = id;
+                    queue.add(new int[]{nx, ny});
+                }
+            }
+        }
+    }
+
+    // Returns the set of road component IDs cardinally adjacent to a building
+    // footprint (no diagonal corners). Empty = no road access.
+    private Set<Integer> getBuildingRoadComponents(int anchorX, int anchorY, BuildingType bt) {
+        if (roadComponentMap == null) return new HashSet<>();
+        int w = bt.getWidth();
+        int h = bt.getHeight();
+        Set<Integer> comps = new HashSet<>();
+        for (int x = anchorX; x < anchorX + w; x++) {
+            addRoadComponent(comps, x, anchorY - 1);
+            addRoadComponent(comps, x, anchorY + h);
+        }
+        for (int y = anchorY; y < anchorY + h; y++) {
+            addRoadComponent(comps, anchorX - 1, y);
+            addRoadComponent(comps, anchorX + w, y);
+        }
+        return comps;
+    }
+
+    private void addRoadComponent(Set<Integer> set, int x, int y) {
+        if (x < 0 || x >= gp.maxWorldCol || y < 0 || y >= gp.maxWorldRow) return;
+        int comp = roadComponentMap[x][y];
+        if (comp >= 0) set.add(comp);
+    }
+
+    // Draws alert icons floating above every building that has active alerts,
+    // with a gentle up-and-down wave animation. Also renders a tooltip on hover.
+    private void drawBuildingAlerts(Graphics2D g2) {
+        int startX = Math.max(0, (gp.cameraWorldX - gp.besarLayar / 2) / tileSize - maxBuildingWidthTiles);
+        int startY = Math.max(0, (gp.cameraWorldY - gp.tinggiLayar / 2) / tileSize - maxBuildingHeightTiles);
+        int endX   = Math.min(gp.maxWorldCol - 1, startX + (gp.besarLayar / tileSize) + 2 + maxBuildingWidthTiles * 2);
+        int endY   = Math.min(gp.maxWorldRow - 1, startY + (gp.tinggiLayar / tileSize) + 2 + maxBuildingHeightTiles * 2);
+
+        // Slow sine wave: ~±4 px vertical bob
+        int waveOffset = (int)(Math.sin(alertAnimTick * 0.04) * 4.0);
+
+        // Collect tooltip info for the icon the cursor is hovering over
+        String hoveredMsg = null;
+        int tooltipX = 0, tooltipY = 0;
+
+        for (int x = startX; x <= endX; x++) {
+            for (int y = startY; y <= endY; y++) {
+                BuildingInstance inst = buildingDataMap[x][y];
+                if (inst == null) continue;
+                if (inst.getType().getCategory() == BuildingType.BuildingCategory.PATH) continue;
+
+                List<Alert> alerts = getAlertsForBuilding(x, y, inst);
+                if (alerts.isEmpty()) continue;
+
+                int bw = tileSize * inst.getType().getWidth();
+                int screenX = x * tileSize - gp.cameraWorldX + gp.besarLayar / 2;
+                int screenY = y * tileSize - gp.cameraWorldY + gp.tinggiLayar / 2;
+
+                // Center icons horizontally, place 5 px above the building top + wave
+                int gap = 3;
+                int totalW = alerts.size() * ALERT_ICON_SIZE + (alerts.size() - 1) * gap;
+                int iconStartX = screenX + bw / 2 - totalW / 2;
+                int iconY = screenY - ALERT_ICON_SIZE - 5 + waveOffset;
+
+                for (int i = 0; i < alerts.size(); i++) {
+                    Alert alert = alerts.get(i);
+                    int iconX = iconStartX + i * (ALERT_ICON_SIZE + gap);
+
+                    BufferedImage icon = (alert == Alert.NEED_ROAD) ? alertNeedRoadImage : alertNeedWorkerImage;
+                    if (icon != null) {
+                        g2.drawImage(icon, iconX, iconY, ALERT_ICON_SIZE, ALERT_ICON_SIZE, null);
+                    } else {
+                        // Fallback colored square if image is missing
+                        g2.setColor(alert == Alert.NEED_ROAD ? new Color(255, 80, 80) : new Color(255, 200, 0));
+                        g2.fillRect(iconX, iconY, ALERT_ICON_SIZE, ALERT_ICON_SIZE);
+                    }
+
+                    // Detect hover
+                    if (mouseH.mouseX >= iconX && mouseH.mouseX <= iconX + ALERT_ICON_SIZE &&
+                        mouseH.mouseY >= iconY && mouseH.mouseY <= iconY + ALERT_ICON_SIZE) {
+                        hoveredMsg = alert.getMessage();
+                        tooltipX   = mouseH.mouseX;
+                        tooltipY   = mouseH.mouseY;
+                    }
+                }
+            }
+        }
+
+        if (hoveredMsg != null) {
+            drawAlertTooltip(g2, hoveredMsg, tooltipX, tooltipY);
+        }
+    }
+
+    // Draws a small red tooltip box near the cursor.
+    private void drawAlertTooltip(Graphics2D g2, String message, int mouseX, int mouseY) {
+        Font font = detailBodyFontCached != null ? detailBodyFontCached : new Font("Dialog", Font.BOLD, 14);
+        g2.setFont(font);
+        int textW  = g2.getFontMetrics().stringWidth(message);
+        int textH  = g2.getFontMetrics().getAscent();
+        int padX = 8, padY = 5;
+        int tipW = textW + padX * 2;
+        int tipH = textH + padY * 2;
+        int tipX = mouseX + 14;
+        int tipY = mouseY - tipH - 4;
+
+        // Keep tooltip within screen bounds
+        if (tipX + tipW > screenWidth)  tipX = mouseX - tipW - 14;
+        if (tipY < 0)                   tipY = mouseY + 4;
+
+        // Background + border
+        g2.setColor(new Color(30, 8, 8, 215));
+        g2.fillRoundRect(tipX, tipY, tipW, tipH, 6, 6);
+        Stroke old = g2.getStroke();
+        g2.setStroke(new BasicStroke(1.5f));
+        g2.setColor(new Color(200, 50, 50));
+        g2.drawRoundRect(tipX, tipY, tipW, tipH, 6, 6);
+        g2.setStroke(old);
+
+        // Red text with dark stroke
+        drawStrokedText(g2, message, tipX + padX, tipY + padY + textH,
+                new Color(255, 80, 80), new Color(20, 0, 0, 200), 1.5f);
     }
 }
