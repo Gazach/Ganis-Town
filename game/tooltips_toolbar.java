@@ -70,6 +70,8 @@ public class tooltips_toolbar {
         String name = rawName.isEmpty() ? rawName
             : Character.toUpperCase(rawName.charAt(0)) + rawName.substring(1);
         String priceStr = formatMoney(building.getPrice());
+        boolean isPath = building.getCategory() == BuildingType.BuildingCategory.PATH;
+        if (isPath) priceStr += " /tile";
 
         int nameW  = fm.stringWidth(name);
         int coinSlot = (coinImage != null) ? COIN_SIZE + COIN_GAP : 0;

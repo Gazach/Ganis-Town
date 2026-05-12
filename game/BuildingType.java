@@ -18,11 +18,13 @@ public enum BuildingType {
     WHEAT(          2, 2,   4000, BuildingCategory.PRODUCTION,    0,   0,  10,  30,  5,  12, "wheat"),
     BUILDING_2X2(   2, 2,  1500, BuildingCategory.PRODUCTION, 0,   0,  4, 10,  5,  12, "building_2x2"),  // 60/6 = 10 fps
     WINDMILL(       2, 3,  3000, BuildingCategory.PRODUCTION, 0,   0,  6, 25,  3,  6,  "windmill"),       // 60/6 = 10 fps
-    BARN(           2, 4,  2000, BuildingCategory.PRODUCTION, 0,   0,  4, 10,  5,  12, "barn");
+    BARN(           2, 4,  2000, BuildingCategory.PRODUCTION, 0,   0,  4, 10,  5,  12, "barn"),
+    ROAD(           1, 1,   100, BuildingCategory.PATH,       0,   0,  0,  0,  0,  1,  "road");
     // -------------------------------------------------------------------------
     public enum BuildingCategory {
         HOUSING,
-        PRODUCTION
+        PRODUCTION,
+        PATH
     }
 
     // -------------------------------------------------------------------------

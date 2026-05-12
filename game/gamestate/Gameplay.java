@@ -30,6 +30,7 @@ import game.dayCycle;
 import game.worldTemperature;
 import game.Music_audio;
 import game.SoundEffect_audio;
+import game.roadpath_system;
 // load system
 import system.KeyHandler;
 import system.GamePanel;
@@ -98,6 +99,14 @@ public class Gameplay {
     private SoundEffect_audio placeSFX;
     private SoundEffect_audio destroySFX;
 
+    // Road placement system
+    private boolean isRoadDragging = false;
+    private int roadStartGridX = -1, roadStartGridY = -1;
+    private List<int[]> roadPreviewTiles = new ArrayList<>();
+    private BufferedImage roadImage;
+    private static final int EDGE_SCROLL_ZONE = 40;   // pixels from edge
+    private static final int EDGE_SCROLL_SPEED = 5;   // world-pixels per frame
+
     // konstanta untuk layout panel info detail bangunan, untuk memudahkan penyesuaian tampilan
     private static final int BUILDING_INFO_PANEL_TOP_BOTTOM_MARGIN = 40;
     private static final int BUILDING_INFO_PANEL_RIGHT_MARGIN = 0;
@@ -130,6 +139,7 @@ public class Gameplay {
         bgMusic    = new Music_audio("/asset/Sound/Music/Jazz_background_music.wav");
         placeSFX   = new SoundEffect_audio("/asset/Sound/SoundEffect/Building_placement.wav");
         destroySFX = new SoundEffect_audio("/asset/Sound/SoundEffect/Destroyed_building.wav");
+        loadRoadImage();
     }
 
     private void cacheMaxBuildingDimensions() {
@@ -172,6 +182,22 @@ public class Gameplay {
             }
         } catch (IOException e) {
             System.out.println("Failed to load person image: " + e.getMessage());
+        }
+    }
+
+    private void loadRoadImage() {
+        try {
+            InputStream stream = getClass().getResourceAsStream("/asset/RoadPath/Road.png");
+            if (stream != null) {
+                roadImage = ImageIO.read(stream);
+                return;
+            }
+            File file = new File("asset/RoadPath/Road.png");
+            if (file.exists()) {
+                roadImage = ImageIO.read(file);
+            }
+        } catch (IOException e) {
+            System.out.println("Failed to load road image: " + e.getMessage());
         }
     }
 
@@ -247,8 +273,12 @@ public class Gameplay {
 
         handleBuildingTitleEditingInput();
 
-        // update player camera based dari dragging mouse
-        if (mouseH.leftPressed) {
+        boolean isRoadMode = showGrid
+            && toolbar.getSelectedBuilding() != null
+            && toolbar.getSelectedBuilding().getCategory() == BuildingType.BuildingCategory.PATH;
+
+        // update player camera based dari dragging mouse (disabled in road mode)
+        if (!isRoadMode && mouseH.leftPressed) {
             if (!isDragging) { // jika baru mulai drag, simpan posisi awal mouse dan kamera
                 isDragging = true;
                 dragStartMouseX = mouseH.mouseX;
@@ -271,7 +301,38 @@ public class Gameplay {
         } else {
             isDragging = false;
         }
-        
+
+        // Edge-scroll camera when cursor is near any screen edge (road mode only)
+        if (isRoadMode) {
+            updateEdgeScroll();
+        }
+
+        // Road drag-placement: press → drag → release paints road tiles
+        if (isRoadMode && mouseH.mouseX >= 0 && mouseH.mouseY >= 0) {
+            if (mouseH.leftPressed && !toolbar.isInsideToolbar(mouseH.mouseY, screenHeight)) {
+                if (!isRoadDragging) {
+                    isRoadDragging = true;
+                    mouseH.consumeLeftClick(); // absorb so regular handler doesn't fire
+                    int worldX = screenToWorldX(mouseH.mouseX);
+                    int worldY = screenToWorldY(mouseH.mouseY);
+                    roadStartGridX = Math.max(0, Math.min(gp.maxWorldCol - 1, worldX / tileSize));
+                    roadStartGridY = Math.max(0, Math.min(gp.maxWorldRow - 1, worldY / tileSize));
+                }
+                // Update preview every frame while held
+                int curGridX = Math.max(0, Math.min(gp.maxWorldCol - 1, screenToWorldX(mouseH.mouseX) / tileSize));
+                int curGridY = Math.max(0, Math.min(gp.maxWorldRow - 1, screenToWorldY(mouseH.mouseY) / tileSize));
+                roadPreviewTiles = roadpath_system.computeRoadTiles(roadStartGridX, roadStartGridY, curGridX, curGridY);
+            } else if (isRoadDragging && !mouseH.leftPressed) {
+                // Mouse released – commit road tiles
+                placeRoadTiles(roadPreviewTiles);
+                isRoadDragging = false;
+                roadPreviewTiles = new ArrayList<>();
+            }
+        } else if (!isRoadMode && isRoadDragging) {
+            isRoadDragging = false;
+            roadPreviewTiles = new ArrayList<>();
+        }
+
         if (mouseH.consumeLeftClick()) { // handle left click untuk interaksi, seperti klik toolbar atau tempatin bangunan di map
             // Reset drag so stale isDragging=true from a missed mouseReleased event can't corrupt world coordinates
             isDragging = false;
@@ -295,7 +356,7 @@ public class Gameplay {
                 int worldX = screenToWorldX(mouseH.mouseX);
                 int worldY = screenToWorldY(mouseH.mouseY);
                 deleteBuilding(worldX, worldY);
-            } else if (showGrid && toolbar.getSelectedBuilding() != null) {
+            } else if (!isRoadMode && showGrid && toolbar.getSelectedBuilding() != null) {
                 finishTitleEditingAndSave();
                 int worldX = screenToWorldX(mouseH.mouseX);
                 int worldY = screenToWorldY(mouseH.mouseY);
@@ -304,6 +365,10 @@ public class Gameplay {
                 int worldX = screenToWorldX(mouseH.mouseX);
                 int worldY = screenToWorldY(mouseH.mouseY);
                 BuildingInstance nextSelection = findBuildingAtWorld(worldX, worldY);
+                // Do not open detail panel for road/path tiles
+                if (nextSelection != null && nextSelection.getType().getCategory() == BuildingType.BuildingCategory.PATH) {
+                    nextSelection = null;
+                }
                 if (nextSelection != selectedBuildingInfo) {
                     finishTitleEditingAndSave();
                 }
@@ -334,6 +399,69 @@ public class Gameplay {
                 incomeAccumulator -= wholeEarned;
             }
         }
+    }
+
+    // Scroll camera when mouse is within EDGE_SCROLL_ZONE pixels of any screen edge
+    private void updateEdgeScroll() {
+        if (mouseH.mouseX < 0 || mouseH.mouseY < 0) return;
+
+        int mx = mouseH.mouseX;
+        int my = mouseH.mouseY;
+
+        if (mx < EDGE_SCROLL_ZONE) {
+            gp.cameraWorldX -= EDGE_SCROLL_SPEED;
+        } else if (mx > screenWidth - EDGE_SCROLL_ZONE) {
+            gp.cameraWorldX += EDGE_SCROLL_SPEED;
+        }
+
+        if (my < EDGE_SCROLL_ZONE) {
+            gp.cameraWorldY -= EDGE_SCROLL_SPEED;
+        } else if (my > screenHeight - EDGE_SCROLL_ZONE) {
+            gp.cameraWorldY += EDGE_SCROLL_SPEED;
+        }
+
+        // Clamp camera to world bounds
+        if (gp.cameraWorldX < gp.besarLayar / 2)  gp.cameraWorldX = gp.besarLayar / 2;
+        if (gp.cameraWorldY < gp.tinggiLayar / 2) gp.cameraWorldY = gp.tinggiLayar / 2;
+        if (gp.cameraWorldX > gp.worldWidth  - gp.besarLayar  / 2) gp.cameraWorldX = gp.worldWidth  - gp.besarLayar  / 2;
+        if (gp.cameraWorldY > gp.worldHeight - gp.tinggiLayar / 2) gp.cameraWorldY = gp.worldHeight - gp.tinggiLayar / 2;
+    }
+
+    // Place all valid road tiles from the path; deducts cost per tile placed
+    private void placeRoadTiles(List<int[]> tiles) {
+        if (tiles == null || tiles.isEmpty()) return;
+
+        List<int[]> tilesToPlace = new ArrayList<>();
+        int totalCost = 0;
+        int pricePerTile = BuildingType.ROAD.getPrice();
+
+        for (int[] tile : tiles) {
+            int gridX = tile[0];
+            int gridY = tile[1];
+            if (canPlaceBuildingAt(gridX, gridY, BuildingType.ROAD)) {
+                if (totalCost + pricePerTile <= playerMoney) {
+                    tilesToPlace.add(tile);
+                    totalCost += pricePerTile;
+                }
+            }
+        }
+
+        if (tilesToPlace.isEmpty()) return;
+
+        for (int[] tile : tilesToPlace) {
+            int gridX = tile[0];
+            int gridY = tile[1];
+            BuildingInstance instance = new BuildingInstance(BuildingType.ROAD, "road");
+            instance.setPlacementOrder(nextPlacementOrder++);
+            buildingsMap[gridX][gridY] = BuildingType.ROAD;
+            buildingDataMap[gridX][gridY] = instance;
+            markBuildingOccupied(gridX, gridY, BuildingType.ROAD, true);
+        }
+
+        playerMoney -= totalCost;
+        recalcIncomeCache();
+        placeSFX.play();
+        saveGame();
     }
     // Method untuk load world map dari save file, kalau ga ada save file, generate baru
     public void loadWorldMap() { // ngeload world map dari save file, kalau ga ada save file, generate baru
@@ -656,6 +784,17 @@ public class Gameplay {
                 int drawWidth = tileSize * building.getWidth();
                 int drawHeight = tileSize * building.getHeight();
 
+                // Road/path tiles use the dedicated road image
+                if (building.getCategory() == BuildingType.BuildingCategory.PATH) {
+                    if (roadImage != null) {
+                        g2.drawImage(roadImage, screenX, screenY, drawWidth, drawHeight, null);
+                    } else {
+                        g2.setColor(new Color(160, 130, 90));
+                        g2.fillRect(screenX, screenY, drawWidth, drawHeight);
+                    }
+                    continue;
+                }
+
                 // Gunakan animasi jika tersedia
                 BufferedImage image = null;
                 BufferedImage[] animFrames = building.getAnimationFrames();
@@ -710,10 +849,11 @@ public class Gameplay {
         for (int y = startY; y <= endY; y++) {
             BuildingType building = buildingsMap[x][y];
             if (building == null) continue;
-
+            // Roads don't glow at night
+            if (building.getCategory() == BuildingType.BuildingCategory.PATH) continue;
             int screenX = x * tileSize - gp.cameraWorldX + gp.besarLayar / 2;
             int screenY = y * tileSize - gp.cameraWorldY + gp.tinggiLayar / 2;
-            int drawWidth = tileSize * building.getWidth();
+            int drawWidth  = tileSize * building.getWidth();
             int drawHeight = tileSize * building.getHeight();
 
             drawBuildingGlow(g2, screenX, screenY, drawWidth, drawHeight, darkness);
@@ -764,6 +904,10 @@ public class Gameplay {
         if (!showGrid || selected == null || mouseH.mouseX < 0 || mouseH.mouseY < 0) {
             return;
         }
+        // Road placement has its own preview; skip normal preview
+        if (selected.getCategory() == BuildingType.BuildingCategory.PATH) {
+            return;
+        }
 
         if (toolbar.isInsideToolbar(mouseH.mouseY, screenHeight)) {
             return;
@@ -802,6 +946,90 @@ public class Gameplay {
 
         g2.setColor(canPlace ? new Color(90, 255, 90, 220) : new Color(255, 80, 80, 220));
         g2.drawRect(screenX, screenY, drawWidth, drawHeight);
+    }
+
+    // Draw road path preview while player is in road-placement mode
+    private void drawRoadPreview(Graphics2D g2) {
+        BuildingType selected = toolbar.getSelectedBuilding();
+        if (!showGrid || selected == null
+                || selected.getCategory() != BuildingType.BuildingCategory.PATH) {
+            return;
+        }
+        if (toolbar.isInsideToolbar(mouseH.mouseY, screenHeight) && !isRoadDragging) {
+            return;
+        }
+        if (mouseH.mouseX < 0 || mouseH.mouseY < 0) return;
+
+        // Build the list to preview
+        List<int[]> previewList;
+        if (isRoadDragging && !roadPreviewTiles.isEmpty()) {
+            previewList = roadPreviewTiles;
+        } else {
+            int gridX = Math.max(0, Math.min(gp.maxWorldCol - 1, screenToWorldX(mouseH.mouseX) / tileSize));
+            int gridY = Math.max(0, Math.min(gp.maxWorldRow - 1, screenToWorldY(mouseH.mouseY) / tileSize));
+            previewList = new ArrayList<>();
+            previewList.add(new int[]{gridX, gridY});
+        }
+
+        // Determine which tiles are affordable and placeable
+        boolean[] tileAffordable = new boolean[previewList.size()];
+        int totalCost = 0;
+        int pricePerTile = BuildingType.ROAD.getPrice();
+        for (int i = 0; i < previewList.size(); i++) {
+            int[] tile = previewList.get(i);
+            if (canPlaceBuildingAt(tile[0], tile[1], BuildingType.ROAD)) {
+                if (totalCost + pricePerTile <= playerMoney) {
+                    tileAffordable[i] = true;
+                    totalCost += pricePerTile;
+                }
+            }
+        }
+
+        for (int i = 0; i < previewList.size(); i++) {
+            int[] tile = previewList.get(i);
+            int gridX = tile[0];
+            int gridY = tile[1];
+            int screenX = gridX * tileSize - gp.cameraWorldX + gp.besarLayar / 2;
+            int screenY = gridY * tileSize - gp.cameraWorldY + gp.tinggiLayar / 2;
+
+            boolean canPlace = canPlaceBuildingAt(gridX, gridY, BuildingType.ROAD);
+            boolean affordable = tileAffordable[i];
+
+            if (roadImage != null) {
+                float alpha = (canPlace && affordable) ? 0.65f : 0.3f;
+                g2.setComposite(java.awt.AlphaComposite.getInstance(java.awt.AlphaComposite.SRC_OVER, alpha));
+                g2.drawImage(roadImage, screenX, screenY, tileSize, tileSize, null);
+                g2.setComposite(java.awt.AlphaComposite.getInstance(java.awt.AlphaComposite.SRC_OVER, 1f));
+            } else {
+                Color fillColor = !canPlace ? new Color(255, 80, 80, 140)
+                    : !affordable ? new Color(150, 150, 150, 120)
+                    : new Color(180, 140, 70, 140);
+                g2.setColor(fillColor);
+                g2.fillRect(screenX, screenY, tileSize, tileSize);
+            }
+
+            // Border tint
+            Color borderColor = !canPlace ? new Color(255, 80, 80, 200)
+                : affordable ? new Color(210, 170, 80, 210)
+                : new Color(140, 140, 140, 160);
+            g2.setColor(borderColor);
+            g2.drawRect(screenX, screenY, tileSize, tileSize);
+        }
+
+        // Show total cost above the last tile during drag
+        if (isRoadDragging && !previewList.isEmpty() && totalCost > 0) {
+            g2.setComposite(java.awt.AlphaComposite.getInstance(java.awt.AlphaComposite.SRC_OVER, 1f));
+            g2.setFont(hudFont != null ? hudFont : new Font("Dialog", Font.BOLD, 17));
+            int[] last = previewList.get(previewList.size() - 1);
+            int lx = last[0] * tileSize - gp.cameraWorldX + gp.besarLayar / 2;
+            int ly = last[1] * tileSize - gp.cameraWorldY + gp.tinggiLayar / 2;
+            String costText = "-" + formatMoney(totalCost)
+                + " (" + previewList.size() + " tile" + (previewList.size() == 1 ? "" : "s") + ")";
+            boolean canAffordAll = totalCost <= playerMoney;
+            drawStrokedText(g2, costText, lx + 4, ly - 4,
+                canAffordAll ? new Color(210, 230, 100) : new Color(255, 80, 80),
+                new Color(0, 0, 0, 220), 2f);
+        }
     }
 
     // Method untuk menggambar UI detail bangunan yang sedang dipilih, muncul di sebelah kanan layar saat ada bangunan yang dipilih, menampilkan nama, tipe, ukuran, dan opsi untuk edit nama
@@ -1197,6 +1425,7 @@ public class Gameplay {
         drawGrid(g2); // gambar grid di atas tile
 
         drawBuildingPreview(g2); // gambar preview saat mau menaruh bangunan
+        drawRoadPreview(g2);     // gambar preview jalur road saat mode jalan aktif
         drawDeleteModePreview(g2); // gambar highlight merah bangunan yang akan dihapus
 
         // gambar toolbar di atas semua layer lain, jadi selalu terlihat
@@ -1335,8 +1564,22 @@ public class Gameplay {
         // Kalau sedang dalam build mode dan bangunan dipilih, tampilkan harga bangunan
         BuildingType selected = toolbar.getSelectedBuilding();
         if (showGrid && selected != null) {
-            String priceText = formatMoney(selected.getPrice());
-            boolean canAfford = playerMoney >= selected.getPrice();
+            // Road mode: show per-tile cost or live drag cost
+            boolean isRoadMode = selected.getCategory() == BuildingType.BuildingCategory.PATH;
+            String priceText;
+            boolean canAfford;
+            if (isRoadMode && isRoadDragging && !roadPreviewTiles.isEmpty()) {
+                int tileCount = roadPreviewTiles.size();
+                int totalCost = Math.min(tileCount, playerMoney / selected.getPrice()) * selected.getPrice();
+                priceText = "-" + formatMoney(totalCost) + " (" + tileCount + " tile" + (tileCount == 1 ? "" : "s") + ")";
+                canAfford = playerMoney >= selected.getPrice();
+            } else if (isRoadMode) {
+                priceText = formatMoney(selected.getPrice()) + " /tile";
+                canAfford = playerMoney >= selected.getPrice();
+            } else {
+                priceText = formatMoney(selected.getPrice());
+                canAfford = playerMoney >= selected.getPrice();
+            }
             int pw = g2.getFontMetrics().stringWidth(priceText);
             int pIconSlot = (coinImage != null) ? coinSize + gap : 0;
             int pBoxX = 8;

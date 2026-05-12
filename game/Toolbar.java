@@ -39,19 +39,21 @@ public class Toolbar {
 
         // Urutan HARUS sama dengan urutan enum di BuildingType.java
         String[] normalImages = {
-            "/asset/Toolbar/house_normal.png",        // BUILDING_1X1
-            "/asset/Toolbar/WheatFarm_normal.png", // BUILDING_1X2
-            "/asset/Toolbar/building2x2_normal.png", // BUILDING_2X2
-            "/asset/Toolbar/building2x3_normal.png",   // BUILDING_2X3
-            "/asset/Toolbar/barn_normal.png",  // BUILDING_2X4
+            "/asset/Toolbar/house_normal.png",        // HOUSE
+            "/asset/Toolbar/WheatFarm_normal.png",    // WHEAT
+            "/asset/Toolbar/building2x2_normal.png",  // BUILDING_2X2
+            "/asset/Toolbar/building2x3_normal.png",  // WINDMILL
+            "/asset/Toolbar/barn_normal.png",         // BARN
+            "/asset/RoadPath/Road.png",               // ROAD
         };
 
         String[] hoverImages = {
-            "/asset/Toolbar/house_hover.png", // BUILDING_1X1
-            "/asset/Toolbar/WheatFarm_hover.png", // BUILDING_1X2
-            "/asset/Toolbar/building2x2_hover.png", // BUILDING_2X2
-            "/asset/Toolbar/building2x3_hover.png",   // BUILDING_2X3
-            "/asset/Toolbar/barn_hover.png",  // BUILDING_2X4
+            "/asset/Toolbar/house_hover.png",         // HOUSE
+            "/asset/Toolbar/WheatFarm_hover.png",     // WHEAT
+            "/asset/Toolbar/building2x2_hover.png",   // BUILDING_2X2
+            "/asset/Toolbar/building2x3_hover.png",   // WINDMILL
+            "/asset/Toolbar/barn_hover.png",          // BARN
+            "/asset/RoadPath/Road.png",               // ROAD
         };
 
         for (int i = 0; i < total; i++) {
