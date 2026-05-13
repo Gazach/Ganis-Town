@@ -119,30 +119,24 @@ public class TileManager {
     public void draw(Graphics2D g2){
         if (mapTileNum == null) return;
 
-        int Worldcol = 0;
-        int Worldrow = 0;
+        // Pre-compute camera offset and visible tile range for culling
+        int camOffX = gp.cameraWorldX - gp.besarLayar / 2;
+        int camOffY = gp.cameraWorldY - gp.tinggiLayar / 2;
+        int ts      = gp.tileSize;
 
-        while(Worldcol < gp.maxWorldCol && Worldrow < gp.maxWorldRow){
-            int tileNum = mapTileNum[Worldcol][Worldrow];
-            int worldX = Worldcol * gp.tileSize;
-            int worldY = Worldrow * gp.tileSize;
-            int screenX = worldX - gp.cameraWorldX + gp.besarLayar/2;
-            int screenY = worldY - gp.cameraWorldY + gp.tinggiLayar/2;
+        int startCol = Math.max(0, camOffX / ts);
+        int startRow = Math.max(0, camOffY / ts);
+        int endCol   = Math.min(gp.maxWorldCol - 1, (camOffX + gp.besarLayar) / ts + 1);
+        int endRow   = Math.min(gp.maxWorldRow - 1, (camOffY + gp.tinggiLayar) / ts + 1);
 
-            if (screenX + gp.tileSize > 0 &&
-                screenX < gp.besarLayar &&
-                screenY + gp.tileSize > 0 &&
-                screenY < gp.tinggiLayar) {
-
+        for (int row = startRow; row <= endRow; row++) {
+            int screenY = row * ts - camOffY;
+            for (int col = startCol; col <= endCol; col++) {
+                int tileNum = mapTileNum[col][row];
                 if (tileNum >= 0 && tileNum < tile.length && tile[tileNum] != null) {
-                    g2.drawImage(tile[tileNum].image, screenX, screenY, gp.tileSize, gp.tileSize, null);
+                    int screenX = col * ts - camOffX;
+                    g2.drawImage(tile[tileNum].image, screenX, screenY, ts, ts, null);
                 }
-            }
-
-            Worldcol++;
-            if(Worldcol == gp.maxWorldCol){
-                Worldcol = 0;
-                Worldrow++;
             }
         }
     }

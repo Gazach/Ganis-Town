@@ -87,6 +87,8 @@ public class Gameplay {
     private int cachedTotalPopulation = 0;
     private double incomeAccumulator = 0.0;
     private Map<BuildingInstance, Integer> cachedWorkerMap = new HashMap<>();
+    // Cached per-building alert lists — rebuilt in recalcIncomeCache() instead of every frame
+    private Map<BuildingInstance, List<Alert>> cachedAlerts = new HashMap<>();
     private static final Random rng = new Random();
     private int nextPlacementOrder = 0;
     private BufferedImage buildingGlowImage;
@@ -126,6 +128,12 @@ public class Gameplay {
     private BufferedImage roadImage;
     private static final int EDGE_SCROLL_ZONE = 40;   // pixels from edge
     private static final int EDGE_SCROLL_SPEED = 5;   // world-pixels per frame
+
+    // Pre-cached rendering constants — avoids per-frame object allocation
+    private static final Color GRID_DELETE_COLOR = new Color(255, 60, 60, 110);
+    private static final Color GRID_NORMAL_COLOR = new Color(255, 255, 255, 100);
+    private static final BasicStroke GRID_STROKE  = new BasicStroke(1);
+    private final java.util.HashMap<Float, BasicStroke> strokeCache = new java.util.HashMap<>();
 
     // konstanta untuk layout panel info detail bangunan, untuk memudahkan penyesuaian tampilan
     private static final int BUILDING_INFO_PANEL_TOP_BOTTOM_MARGIN = 40;
@@ -274,6 +282,7 @@ public class Gameplay {
         cachedTotalIncome = 0.0;
         cachedTotalPopulation = 0;
         incomeAccumulator = 0.0;
+        cachedAlerts.clear();
         npcSystem.clear();
         resetBuildModeState();
         bgMusic.play();
@@ -635,8 +644,8 @@ public class Gameplay {
         endY = Math.min(gp.maxWorldRow, endY);
 
         boolean inDeleteMode = toolbar.isDeleteMode();
-        g2.setColor(inDeleteMode ? new java.awt.Color(255, 60, 60, 110) : new java.awt.Color(255, 255, 255, 100)); // red in delete mode, white in build mode
-        g2.setStroke(new java.awt.BasicStroke(1));
+        g2.setColor(inDeleteMode ? GRID_DELETE_COLOR : GRID_NORMAL_COLOR);
+        g2.setStroke(GRID_STROKE);
 
         // Draw vertical lines
         for (int x = startX; x <= endX; x++) {
@@ -1325,7 +1334,8 @@ public class Gameplay {
         Stroke oldStroke = g2.getStroke();
 
         g2.setColor(strokeColor);
-        g2.setStroke(new BasicStroke(strokeWidth, BasicStroke.CAP_ROUND, BasicStroke.JOIN_ROUND));
+        g2.setStroke(strokeCache.computeIfAbsent(strokeWidth,
+            w -> new BasicStroke(w, BasicStroke.CAP_ROUND, BasicStroke.JOIN_ROUND)));
         g2.draw(outline);
 
         g2.setColor(fillColor);
@@ -1348,15 +1358,8 @@ public class Gameplay {
             return buildingDataMap[gridX][gridY];
         }
 
-        int maxBuildingWidth = 1;
-        int maxBuildingHeight = 1;
-        for (BuildingType type : BuildingType.values()) {
-            maxBuildingWidth = Math.max(maxBuildingWidth, type.getWidth());
-            maxBuildingHeight = Math.max(maxBuildingHeight, type.getHeight());
-        }
-
-        int startAnchorX = Math.max(0, gridX - maxBuildingWidth + 1);
-        int startAnchorY = Math.max(0, gridY - maxBuildingHeight + 1);
+        int startAnchorX = Math.max(0, gridX - maxBuildingWidthTiles + 1);
+        int startAnchorY = Math.max(0, gridY - maxBuildingHeightTiles + 1);
 
         for (int anchorX = startAnchorX; anchorX <= gridX; anchorX++) {
             for (int anchorY = startAnchorY; anchorY <= gridY; anchorY++) {
@@ -1549,6 +1552,18 @@ public class Gameplay {
         // Sync NPC count (75% of population) and road tile list after every recalc
         npcSystem.rebuildRoadList(buildingsMap, gp.maxWorldCol, gp.maxWorldRow);
         npcSystem.syncNpcCount(cachedTotalPopulation);
+
+        // Rebuild alert cache so drawBuildingAlerts() avoids per-frame recalculation
+        cachedAlerts.clear();
+        for (int x = 0; x < gp.maxWorldCol; x++) {
+            for (int y = 0; y < gp.maxWorldRow; y++) {
+                BuildingInstance inst = buildingDataMap[x][y];
+                if (inst != null && inst.getType().getCategory() != BuildingType.BuildingCategory.PATH) {
+                    List<Alert> a = getAlertsForBuilding(x, y, inst);
+                    if (!a.isEmpty()) cachedAlerts.put(inst, a);
+                }
+            }
+        }
     }
 
     // Returns a 0.3–1.0 efficiency multiplier based on current temperature.
@@ -1989,7 +2004,7 @@ public class Gameplay {
                 if (inst == null) continue;
                 if (inst.getType().getCategory() == BuildingType.BuildingCategory.PATH) continue;
 
-                List<Alert> alerts = getAlertsForBuilding(x, y, inst);
+                List<Alert> alerts = cachedAlerts.getOrDefault(inst, java.util.Collections.emptyList());
                 if (alerts.isEmpty()) continue;
 
                 int bw = tileSize * inst.getType().getWidth();

@@ -15,8 +15,8 @@ public enum BuildingType {
     //  PATH     → jalan, tidak memberikan populasi atau uang, tapi diperlukan untuk akses pekerja dan konektivitas
     //                  w          h        price        category                    minP            maxP         maxW income/s  animFrameCount  animSpeed  assetName
     HOUSE(          1, 1,   500, BuildingCategory.HOUSING,    2,   4,  0,  0,  0,  1,  "building_1x1"),
-    WHEAT(          2, 2,   4000, BuildingCategory.PRODUCTION,    0,   0,  10,  30,  5,  12, "wheat"),
-    BUILDING_2X2(   2, 2,  1500, BuildingCategory.PRODUCTION, 0,   0,  4, 10,  5,  12, "building_2x2"),  // 60/6 = 10 fps
+    WHEAT(          2, 2,   4000, BuildingCategory.PRODUCTION,    0,   0,  10,  30,  8,  12, "wheat"),
+    BUILDING_2X2(   2, 2,  1500, BuildingCategory.PRODUCTION, 0,   0,  4, 10,  11,  12, "building_2x2"),  // 60/6 = 10 fps
     WINDMILL(       2, 3,  3000, BuildingCategory.PRODUCTION, 0,   0,  6, 25,  3,  6,  "windmill"),       // 60/6 = 10 fps
     BARN(           2, 4,  2000, BuildingCategory.PRODUCTION, 0,   0,  4, 10,  5,  12, "barn"),
     ROAD(           1, 1,   100, BuildingCategory.PATH,       0,   0,  0,  0,  0,  1,  "road");

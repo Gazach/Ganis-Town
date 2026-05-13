@@ -102,6 +102,9 @@ public class GamePanel extends JPanel implements Runnable{
 				delta--;
 
 				drawCount++;
+			} else {
+				// Sleep instead of busy-spinning — yields CPU between frames
+				try { Thread.sleep(1); } catch (InterruptedException e) { Thread.currentThread().interrupt(); }
 			}
 			if (timer >= 1000000000){
 				System.out.println("FPS:" + drawCount);
