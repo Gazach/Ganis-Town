@@ -78,6 +78,11 @@ public class Gameplay {
     private int playerMoney = 2500;
     private int playerCrops = 0;
     private long lastIncomeTime = System.currentTimeMillis();
+    private long lastShopSellTime = System.currentTimeMillis();
+    private double shopCoinAccumulator = 0.0;
+    private static final int SHOP_SELL_INTERVAL_MS   = 5000;
+    private static final int SHOP_MAX_CROPS_PER_TICK  = 500;
+    private static final double SHOP_COINS_PER_CROP   = 0.5;
     private BufferedImage coinImage;
     private BufferedImage cropImage;
     private BufferedImage personImage;
@@ -302,6 +307,8 @@ public class Gameplay {
         cachedTotalCrops = 0.0;
         cachedTotalPopulation = 0;
         cropsAccumulator = 0.0;
+        lastShopSellTime = System.currentTimeMillis();
+        shopCoinAccumulator = 0.0;
         cachedAlerts.clear();
         npcSystem.clear();
         resetBuildModeState();
@@ -433,6 +440,7 @@ public class Gameplay {
         dayTime.update();
         temperature.update(dayTime.getHour());
         tickBuildingIncome();
+        tickShopSelling();
         npcSystem.update();
     }
 
@@ -452,6 +460,38 @@ public class Gameplay {
                 playerCrops += wholeEarned;
                 cropsAccumulator -= wholeEarned;
             }
+        }
+    }
+
+    // Setiap 5 detik, toko menjual crop menjadi koin (tutup saat malam)
+    private void tickShopSelling() {
+        long now = System.currentTimeMillis();
+        if (now - lastShopSellTime < SHOP_SELL_INTERVAL_MS) return;
+        lastShopSellTime = now;
+
+        // Shop closes at night
+        if (dayTime.getDarkness() >= 1.0f) return;
+
+        // Count placed SHOP buildings
+        int shopCount = 0;
+        for (int x = 0; x < gp.maxWorldCol; x++) {
+            for (int y = 0; y < gp.maxWorldRow; y++) {
+                BuildingInstance inst = buildingDataMap[x][y];
+                if (inst != null && inst.getType() == BuildingType.SHOP) {
+                    shopCount++;
+                }
+            }
+        }
+        if (shopCount == 0 || playerCrops <= 0) return;
+
+        int maxSell = shopCount * SHOP_MAX_CROPS_PER_TICK;
+        int toSell  = Math.min(playerCrops, maxSell);
+        playerCrops -= toSell;
+        shopCoinAccumulator += toSell * SHOP_COINS_PER_CROP;
+        int wholeCoins = (int) shopCoinAccumulator;
+        if (wholeCoins > 0) {
+            playerMoney += wholeCoins;
+            shopCoinAccumulator -= wholeCoins;
         }
     }
 
@@ -1172,6 +1212,15 @@ public class Gameplay {
             );
         } else {
             BuildingType btype = selectedBuildingInfo.getType();
+
+            if (btype == BuildingType.SHOP) {
+                boolean isOpen = dayTime.getDarkness() < 1.0f;
+                String statusText = isOpen ? "Status: Open" : "Status: Closed (Night)";
+                Color statusColor = isOpen ? new Color(100, 230, 120) : new Color(180, 80, 80);
+                drawStrokedText(g2, statusText, textX, bodyY + 36, statusColor, new Color(8, 8, 8, 220), 1.5f);
+                drawStrokedText(g2, "Sells: up to 500 crops / 5s", textX, bodyY + 54, new Color(255, 200, 100), new Color(8, 8, 8, 220), 1.5f);
+                drawStrokedText(g2, "Rate: 0.5 coins / crop", textX, bodyY + 72, new Color(150, 200, 150), new Color(8, 8, 8, 220), 1.5f);
+            } else {
             int maxWorkers = btype.getMaxWorkers();
             int maxCrops   = btype.getCropsPerSecond();
 
@@ -1223,6 +1272,7 @@ public class Gameplay {
                 new Color(8, 8, 8, 220),
                 1.5f
             );
+            }
         }
     }
 
