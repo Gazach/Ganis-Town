@@ -23,7 +23,8 @@ public enum BuildingType {
     BUILDING_2X2(   2, 2,  1500, BuildingCategory.PRODUCTION, 0,   0,  4, 10,  11,  12, "building_2x2"),  // 60/6 = 10 fps
     WINDMILL(       2, 3,  3000, BuildingCategory.PRODUCTION, 0,   0,  6, 25,  3,  6,  "windmill"),       // 60/6 = 10 fps
     BARN(           2, 4,  2000, BuildingCategory.PRODUCTION, 0,   0,  4, 10,  5,  12, "barn"),
-    ROAD(           1, 1,   100, BuildingCategory.PATH,       0,   0,  0,  0,  0,  1,  "road");
+    ROAD(           1, 1,   100, BuildingCategory.PATH,       0,   0,  0,  0,  0,  1,  "road"),
+    SHOP(           2, 2,  2500, BuildingCategory.PRODUCTION, 0,   0,  5, 20,  8,  12, "shop");
     // -------------------------------------------------------------------------
     public enum BuildingCategory {
         HOUSING,
