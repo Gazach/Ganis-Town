@@ -26,10 +26,11 @@ public enum BuildingType {
     ROAD(           1, 1,   100, BuildingCategory.PATH,       0,   0,  0,  0,  0,  1,  "road"),
     SHOP(           2, 2,  2500, BuildingCategory.PRODUCTION, 0,   0,  5,  0,  8,  12, "shop"),
     UPGRADE_BUILDING(2, 2,  5000, BuildingCategory.PRODUCTION, 0,   0,  0,  0,  1,  1,  "upgradeBuilding"),
+    HOUSE2(          2, 2,  1000, BuildingCategory.HOUSING,    4,   6,  0,  0,  0,  1,  "house2"),
     // Environmental decoration — placed by world generator, not in toolbar
-    TREE1(          3, 3,   200, BuildingCategory.DECORATION, 0,   0,  0,  0,  1,  1,  "tree1"),
-    TREE2(          2, 2,   200, BuildingCategory.DECORATION, 0,   0,  0,  0,  1,  1,  "tree2"),
-    TREE3(          1, 1,   200, BuildingCategory.DECORATION, 0,   0,  0,  0,  1,  1,  "tree3");
+    TREE1(           3, 3,   200, BuildingCategory.DECORATION, 0,   0,  0,  0,  1,  1,  "tree1"),
+    TREE2(           2, 2,   200, BuildingCategory.DECORATION, 0,   0,  0,  0,  1,  1,  "tree2"),
+    TREE3(           1, 1,   200, BuildingCategory.DECORATION, 0,   0,  0,  0,  1,  1,  "tree3");
     // -------------------------------------------------------------------------
     public enum BuildingCategory {
         HOUSING,

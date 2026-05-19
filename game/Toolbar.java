@@ -64,7 +64,8 @@ public class Toolbar {
             "/asset/Toolbar/barn_normal.png",         // BARN
             "/asset/RoadPath/Road.png",               // ROAD
             "/asset/Toolbar/shop_normal.png",          // SHOP
-            "/asset/Toolbar/upgradeBuilding_normal.png" // UPGRADE_BUILDING
+            "/asset/Toolbar/upgradeBuilding_normal.png", // UPGRADE_BUILDING
+            "/asset/Toolbar/house2_normal.png"         // HOUSE2 
         };
 
         String[] hoverImages = {
@@ -79,7 +80,8 @@ public class Toolbar {
             "/asset/Toolbar/barn_hover.png",          // BARN
             "/asset/RoadPath/Road.png",               // ROAD
             "/asset/Toolbar/shop_hover.png",           // SHOP
-            "/asset/Toolbar/upgradeBuilding_hover.png" // UPGRADE_BUILDING
+            "/asset/Toolbar/upgradeBuilding_hover.png", // UPGRADE_BUILDING
+            "/asset/Toolbar/house2_hover.png"         // HOUSE2
         };
 
         for (int i = 0; i < total; i++) {
