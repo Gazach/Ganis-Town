@@ -279,7 +279,8 @@ public class Gameplay {
 
     // Method untuk generate world map baru dengan Perlin noise, dipanggil saat start new game atau load game tanpa save file
     public void generateWorld() {
-        PerlinNoise noise = new PerlinNoise(System.currentTimeMillis()); // seed with current time for randomness
+        long seed = System.currentTimeMillis();
+        PerlinNoise noise = new PerlinNoise(seed); // seed with current time for randomness
         for (int x = 0; x < gp.maxWorldCol; x++) {
             for (int y = 0; y < gp.maxWorldRow; y++) {
                 double value = noise.octaveNoise(x * 0.05, y * 0.05, 4, 0.5); // larger scale for bigger features
@@ -297,6 +298,10 @@ public class Gameplay {
         buildingDataMap = new BuildingInstance[gp.maxWorldCol][gp.maxWorldRow];
         buildingOccupiedMap = new boolean[gp.maxWorldCol][gp.maxWorldRow];
         gp.tileM.setMap(worldMap);
+
+        // Place trees as environmental decoration on grass tiles
+        system.envMapGeneration.placeTrees(buildingDataMap, buildingsMap, buildingOccupiedMap,
+                worldMap, gp.maxWorldCol, gp.maxWorldRow, seed);
     }
 
     // Method untuk memulai game baru, dengan generate world baru dan reset state terkait build mode
@@ -442,8 +447,10 @@ public class Gameplay {
                 int worldX = screenToWorldX(mouseH.mouseX);
                 int worldY = screenToWorldY(mouseH.mouseY);
                 BuildingInstance nextSelection = findBuildingAtWorld(worldX, worldY);
-                // Do not open detail panel for road/path tiles
-                if (nextSelection != null && nextSelection.getType().getCategory() == BuildingType.BuildingCategory.PATH) {
+                // Do not open detail panel for road/path tiles or decoration (trees)
+                if (nextSelection != null && (
+                        nextSelection.getType().getCategory() == BuildingType.BuildingCategory.PATH
+                     || nextSelection.getType().getCategory() == BuildingType.BuildingCategory.DECORATION)) {
                     nextSelection = null;
                 }
                 if (nextSelection != selectedBuildingInfo) {
@@ -859,7 +866,7 @@ public class Gameplay {
 
         for (int x = gridX; x < gridX + width; x++) {
             for (int y = gridY; y < gridY + height; y++) {
-                if (buildingOccupiedMap[x][y] || worldMap[x][y] == 2) {
+                if (buildingOccupiedMap[x][y] || buildingDataMap[x][y] != null || worldMap[x][y] == 2) {
                     return false;
                 }
             }
@@ -963,8 +970,9 @@ public class Gameplay {
         for (int y = startY; y <= endY; y++) {
             BuildingType building = buildingsMap[x][y];
             if (building == null) continue;
-            // Roads don't glow at night
+            // Roads and decoration (trees) don't glow at night
             if (building.getCategory() == BuildingType.BuildingCategory.PATH) continue;
+            if (building.getCategory() == BuildingType.BuildingCategory.DECORATION) continue;
             int screenX = x * tileSize - gp.cameraWorldX + gp.besarLayar / 2;
             int screenY = y * tileSize - gp.cameraWorldY + gp.tinggiLayar / 2;
             int drawWidth  = tileSize * building.getWidth();
@@ -1338,7 +1346,8 @@ public class Gameplay {
                 BuildingType t = inst.getType();
                 if (t == BuildingType.UPGRADE_BUILDING
                         || t == BuildingType.ROAD
-                        || t.getCategory() == BuildingType.BuildingCategory.HOUSING) continue;
+                        || t.getCategory() == BuildingType.BuildingCategory.HOUSING
+                        || t.getCategory() == BuildingType.BuildingCategory.DECORATION) continue;
                 typesOnMap.add(t);
             }
         }
@@ -2245,7 +2254,9 @@ public class Gameplay {
     // Returns the list of active alerts for the building anchored at (anchorX, anchorY).
     private List<Alert> getAlertsForBuilding(int anchorX, int anchorY, BuildingInstance inst) {
         BuildingType bt = inst.getType();
-        if (bt.getCategory() == BuildingType.BuildingCategory.PATH) return java.util.Collections.emptyList();
+        if (bt.getCategory() == BuildingType.BuildingCategory.PATH
+                || bt.getCategory() == BuildingType.BuildingCategory.DECORATION)
+            return java.util.Collections.emptyList();
 
         List<Alert> alerts = new ArrayList<>();
 

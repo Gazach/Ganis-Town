@@ -284,7 +284,8 @@ public class Player_SaveFile {
             return "-1";
         }
 
-        String name = building.getName().length() > 100 ? building.getName().substring(0, 100) : building.getName();
+        String rawName = building.getName() != null ? building.getName() : "";
+        String name = rawName.length() > 100 ? rawName.substring(0, 100) : rawName;
         String encodedName = Base64.getEncoder().encodeToString(name.getBytes(StandardCharsets.UTF_8));
         return building.getType().ordinal() + ":" + encodedName + ":" + building.getPopulation() + ":" + building.getPlacementOrder();
     }

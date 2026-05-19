@@ -15,6 +15,8 @@ public class Toolbar {
     
     BufferedImage[] btnNormal;
     BufferedImage[] btnHover;
+    // Only buildings shown in the toolbar (DECORATION buildings are excluded)
+    private BuildingType[] toolbarBuildings;
     
     private BuildingType selectedBuilding = null;
     private panel toolbarPanel;
@@ -29,15 +31,27 @@ public class Toolbar {
     public Toolbar() {
         toolbarPanel = new panel();
         tooltip = new tooltips_toolbar();
+        initToolbarBuildings();
         loadImages(); 
     }
 
+    /** Build the filtered list of buildings shown in the toolbar (skip DECORATION). */
+    private void initToolbarBuildings() {
+        java.util.List<BuildingType> list = new java.util.ArrayList<>();
+        for (BuildingType bt : BuildingType.values()) {
+            if (bt.getCategory() != BuildingType.BuildingCategory.DECORATION) {
+                list.add(bt);
+            }
+        }
+        toolbarBuildings = list.toArray(new BuildingType[0]);
+    }
+
     private void loadImages() {
-        int total = BuildingType.values().length;
+        int total = toolbarBuildings.length;
         btnNormal = new BufferedImage[total];
         btnHover  = new BufferedImage[total];
 
-        // Urutan HARUS sama dengan urutan enum di BuildingType.java
+        // Urutan HARUS sama dengan urutan non-DECORATION entries di BuildingType.java
         String[] normalImages = {
             "/asset/Toolbar/house_normal.png",        // HOUSE
             "/asset/Toolbar/WheatFarm_normal.png",    // WHEAT
@@ -113,7 +127,7 @@ public class Toolbar {
     public void draw(Graphics2D g2, int screenWidth, int screenHeight, int mouseX, int mouseY, Gameplay gameplay) {
         toolbarPanel.draw(g2, 0, screenHeight - toolbarHeight, screenWidth, toolbarHeight);
         
-        for (int i = 0; i < BuildingType.values().length; i++) {
+        for (int i = 0; i < toolbarBuildings.length; i++) {
             int x = btnPadding + i * (btnSize + btnPadding);
             int y = screenHeight - toolbarHeight + 8;
             
@@ -132,12 +146,11 @@ public class Toolbar {
         }
 
         // Draw tooltip for whichever button is currently hovered
-        BuildingType[] buildings = BuildingType.values();
-        for (int i = 0; i < buildings.length; i++) {
+        for (int i = 0; i < toolbarBuildings.length; i++) {
             int x = btnPadding + i * (btnSize + btnPadding);
             int y = screenHeight - toolbarHeight + 8;
             if (button.isHovering(x, y, btnSize, btnSize, mouseX, mouseY)) {
-                tooltip.draw(g2, buildings[i], x + btnSize / 2, y, screenWidth);
+                tooltip.draw(g2, toolbarBuildings[i], x + btnSize / 2, y, screenWidth);
                 break;
             }
         }
@@ -188,10 +201,11 @@ public class Toolbar {
     }
 
     public BufferedImage getBuildingImage(BuildingType building) {
-        if (building == null) {
-            return null;
+        if (building == null) return null;
+        for (int i = 0; i < toolbarBuildings.length; i++) {
+            if (toolbarBuildings[i] == building) return btnNormal[i];
         }
-        return btnNormal[building.ordinal()];
+        return null;
     }
 
     public boolean isInsideToolbar(int mouseY, int screenHeight) {
@@ -199,12 +213,11 @@ public class Toolbar {
     }
     
     public BuildingType getClickedBuilding(int mouseX, int mouseY, int screenHeight) {
-        for (int i = 0; i < BuildingType.values().length; i++) {
+        for (int i = 0; i < toolbarBuildings.length; i++) {
             int x = btnPadding + i * (btnSize + btnPadding);
             int y = screenHeight - toolbarHeight + 8;
-            
             if (button.isHovering(x, y, btnSize, btnSize, mouseX, mouseY)) {
-                return BuildingType.values()[i];
+                return toolbarBuildings[i];
             }
         }
         return null;
