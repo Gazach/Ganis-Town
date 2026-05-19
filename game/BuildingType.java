@@ -25,7 +25,8 @@ public enum BuildingType {
     BARN(           2, 4,  2000, BuildingCategory.PRODUCTION, 0,   0,  4, 10,  5,  12, "barn"),
     ROAD(           1, 1,   100, BuildingCategory.PATH,       0,   0,  0,  0,  0,  1,  "road"),
     SHOP(           2, 2,  2500, BuildingCategory.PRODUCTION, 0,   0,  5,  0,  8,  12, "shop"),
-    UPGRADE_BUILDING(2, 2,  5000, BuildingCategory.PRODUCTION, 0,   0,  0,  0,  1,  1,  "upgradeBuilding");
+    UPGRADE_BUILDING(2, 2,  5000, BuildingCategory.PRODUCTION, 0,   0,  0,  0,  1,  1,  "upgradeBuilding"),
+    HOUSE2(         2, 2,   1000, BuildingCategory.HOUSING,    4,   6,  0,  0,  0,  1,  "house2");
     // -------------------------------------------------------------------------
     public enum BuildingCategory {
         HOUSING,
