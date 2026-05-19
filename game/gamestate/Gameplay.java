@@ -456,6 +456,7 @@ public class Gameplay {
         toolbar.update(mouseH.mouseX, mouseH.mouseY);
         dayTime.update();
         temperature.update(dayTime.getHour());
+        npcSystem.setNightFactor(dayTime.getDarkness() >= 1.0f ? 0.3f : 1.0f);
         tickBuildingIncome();
         tickShopSelling();
         npcSystem.update();

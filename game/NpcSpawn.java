@@ -42,6 +42,8 @@ public class NpcSpawn {
     private final Color[] botCol = new Color[MAX_NPCS]; // pants colour
 
     private int count = 0;
+    private float nightFactor   = 1.0f;
+    private int lastPopulation  = 0;
 
     private final List<int[]> roadTiles = new ArrayList<>();
     private BuildingType[][] buildingsMap;
@@ -85,16 +87,27 @@ public class NpcSpawn {
         }
     }
 
-    /** Sync NPC count to ⌊population × 0.75⌋, capped at MAX_NPCS. */
+    /** Sync NPC count to ⌊population × 0.75 × nightFactor⌋, capped at MAX_NPCS. */
     public void syncNpcCount(int totalPopulation) {
-        int target = Math.min((int)(totalPopulation * 0.75f), MAX_NPCS);
+        this.lastPopulation = totalPopulation;
         if (roadTiles.isEmpty()) { count = 0; return; }
-        if (count > target)     { count = target; return; }
-
+        int target = Math.min((int)(totalPopulation * 0.75f * nightFactor), MAX_NPCS);
+        if (count > target) { count = target; return; }
         while (count < target) {
             int[] tile = roadTiles.get(rng.nextInt(roadTiles.size()));
             spawnNpc(tile[0], tile[1]);
         }
+    }
+
+    /**
+     * Adjust the NPC population multiplier (1.0 = full day, 0.3 = night).
+     * Re-syncs count only when the factor actually changes.
+     */
+    public void setNightFactor(float factor) {
+        float clamped = Math.max(0f, Math.min(1f, factor));
+        if (Math.abs(clamped - nightFactor) < 0.001f) return;
+        nightFactor = clamped;
+        syncNpcCount(lastPopulation);
     }
 
     /** Remove all NPCs (call on New Game / load). */
