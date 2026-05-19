@@ -55,6 +55,7 @@ public class GamePanel extends JPanel implements Runnable{
 		this.addKeyListener(keyH);
 		this.addMouseListener(mouseH);
 		this.addMouseMotionListener(mouseH);
+		this.addMouseWheelListener(mouseH);
 		this.setFocusable(true);
 		this.requestFocusInWindow();
 

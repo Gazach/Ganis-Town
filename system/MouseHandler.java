@@ -3,10 +3,12 @@ package system;
 import java.awt.event.MouseEvent;
 import java.awt.event.MouseListener;
 import java.awt.event.MouseMotionListener;
+import java.awt.event.MouseWheelEvent;
+import java.awt.event.MouseWheelListener;
 
 // Kode untuk ngehandle input mouse, termasuk posisi mouse dan klik kiri
 
-public class MouseHandler implements MouseListener, MouseMotionListener {
+public class MouseHandler implements MouseListener, MouseMotionListener, MouseWheelListener {
     private GamePanel gp;
 
     public int mouseX = -1;
@@ -15,6 +17,7 @@ public class MouseHandler implements MouseListener, MouseMotionListener {
     public boolean rightPressed = false;
     private boolean leftClicked = false;
     private boolean rightClicked = false;
+    private int scrollUnits = 0;
 
     public MouseHandler(GamePanel gp) {
         this.gp = gp;
@@ -49,6 +52,13 @@ public class MouseHandler implements MouseListener, MouseMotionListener {
             return true;
         }
         return false;
+    }
+
+    /** Returns accumulated scroll wheel rotation since last call (positive = down). */
+    public int consumeScrollUnits() {
+        int s = scrollUnits;
+        scrollUnits = 0;
+        return s;
     }
 
     @Override
@@ -96,5 +106,10 @@ public class MouseHandler implements MouseListener, MouseMotionListener {
     @Override
     public void mouseMoved(MouseEvent e) {
         updateMousePosition(e);
+    }
+
+    @Override
+    public void mouseWheelMoved(MouseWheelEvent e) {
+        scrollUnits += e.getWheelRotation();
     }
 }

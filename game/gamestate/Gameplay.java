@@ -37,6 +37,7 @@ import game.worldTemperature;
 import game.Music_audio;
 import game.SoundEffect_audio;
 import game.roadpath_system;
+import game.playerUpgrade;
 // load system
 import system.KeyHandler;
 import system.GamePanel;
@@ -81,8 +82,11 @@ public class Gameplay {
     private long lastShopSellTime = System.currentTimeMillis();
     private double shopCoinAccumulator = 0.0;
     private static final int SHOP_SELL_INTERVAL_MS   = 5000;
-    private static final int SHOP_MAX_CROPS_PER_TICK  = 500;
-    private static final double SHOP_COINS_PER_CROP   = 0.5;
+    private final playerUpgrade upgradeSystem = new playerUpgrade();
+    private int upgradeListScrollOffset = 0;
+    private static final int UPGRADE_ENTRY_HEIGHT      = 84;
+    private static final int SHOP_UPGRADE_ENTRY_HEIGHT = 108;
+    private final java.util.List<int[]> upgradeButtonHitboxes = new java.util.ArrayList<>();
     private BufferedImage coinImage;
     private BufferedImage cropImage;
     private BufferedImage personImage;
@@ -146,6 +150,7 @@ public class Gameplay {
     private static final int BUILDING_INFO_PANEL_TOP_BOTTOM_MARGIN = 40;
     private static final int BUILDING_INFO_PANEL_RIGHT_MARGIN = 0;
     private static final int BUILDING_INFO_PANEL_WIDTH = 250;
+    private static final int UPGRADE_PANEL_EXTRA_WIDTH  = 45;  // upgrade panel extends this many extra px to the left
     private static final int BUILDING_TITLE_MAX_LENGTH = 100;
     private static final int BUILDING_TITLE_INPUT_X_PADDING = 10;
     private static final int BUILDING_TITLE_INPUT_Y = 8;
@@ -309,6 +314,8 @@ public class Gameplay {
         cropsAccumulator = 0.0;
         lastShopSellTime = System.currentTimeMillis();
         shopCoinAccumulator = 0.0;
+        upgradeSystem.clear();
+        upgradeListScrollOffset = 0;
         cachedAlerts.clear();
         npcSystem.clear();
         resetBuildModeState();
@@ -393,6 +400,14 @@ public class Gameplay {
             roadPreviewTiles = new ArrayList<>();
         }
 
+        // Scroll the upgrade building list when the detail panel is open
+        if (selectedBuildingInfo != null && selectedBuildingInfo.getType() == BuildingType.UPGRADE_BUILDING) {
+            int scroll = mouseH.consumeScrollUnits();
+            if (scroll != 0) {
+                upgradeListScrollOffset = Math.max(0, upgradeListScrollOffset + scroll * 22);
+            }
+        }
+
         if (mouseH.consumeLeftClick()) { // handle left click untuk interaksi, seperti klik toolbar atau tempatin bangunan di map
             // Reset drag so stale isDragging=true from a missed mouseReleased event can't corrupt world coordinates
             isDragging = false;
@@ -407,7 +422,9 @@ public class Gameplay {
                 finishTitleEditingAndSave();
                 toolbar.handleClick(mouseH.mouseX, mouseH.mouseY, screenHeight, this);
             } else if (!toolbar.isDeleteMode() && isInsideBuildingDetailPanel(mouseH.mouseX, mouseH.mouseY)) {
-                if (selectedBuildingInfo != null && isInsideBuildingTitleEditArea(mouseH.mouseX, mouseH.mouseY)) {
+                if (selectedBuildingInfo != null && selectedBuildingInfo.getType() == BuildingType.UPGRADE_BUILDING) {
+                    handleUpgradeButtonClick(mouseH.mouseX, mouseH.mouseY);
+                } else if (selectedBuildingInfo != null && isInsideBuildingTitleEditArea(mouseH.mouseX, mouseH.mouseY)) {
                     startTitleEditing();
                 } else {
                     finishTitleEditingAndSave();
@@ -439,6 +456,7 @@ public class Gameplay {
         toolbar.update(mouseH.mouseX, mouseH.mouseY);
         dayTime.update();
         temperature.update(dayTime.getHour());
+        npcSystem.setNightFactor(dayTime.getDarkness() >= 1.0f ? 0.3f : 1.0f);
         tickBuildingIncome();
         tickShopSelling();
         npcSystem.update();
@@ -484,10 +502,12 @@ public class Gameplay {
         }
         if (shopCount == 0 || playerCrops <= 0) return;
 
-        int maxSell = shopCount * SHOP_MAX_CROPS_PER_TICK;
+        int perShop = playerUpgrade.getShopMaxCrops(upgradeSystem.getShopCapLevel());
+        int maxSell = shopCount * perShop;
         int toSell  = Math.min(playerCrops, maxSell);
         playerCrops -= toSell;
-        shopCoinAccumulator += toSell * SHOP_COINS_PER_CROP;
+        double coinRate = playerUpgrade.getShopCoinRate(upgradeSystem.getShopRateLevel());
+        shopCoinAccumulator += toSell * coinRate;
         int wholeCoins = (int) shopCoinAccumulator;
         if (wholeCoins > 0) {
             playerMoney += wholeCoins;
@@ -1137,6 +1157,15 @@ public class Gameplay {
         int panelX = getBuildingDetailPanelX();
         int panelY = BUILDING_INFO_PANEL_TOP_BOTTOM_MARGIN;
 
+        // Upgrade Building gets its own special panel instead of normal detail UI
+        if (selectedBuildingInfo.getType() == BuildingType.UPGRADE_BUILDING) {
+            int uPanelX = panelX - UPGRADE_PANEL_EXTRA_WIDTH;
+            int uPanelW = panelWidth + UPGRADE_PANEL_EXTRA_WIDTH;
+            buildingInfoPanelSkin.draw(g2, uPanelX, panelY, uPanelW, panelHeight);
+            drawUpgradeBuildingPanel(g2, uPanelX, panelY, uPanelW, panelHeight);
+            return;
+        }
+
         buildingInfoPanelSkin.draw(g2, panelX, panelY, panelWidth, panelHeight);
 
         int titleWidth = BUILDING_INFO_PANEL_WIDTH - (BUILDING_TITLE_INPUT_X_PADDING * 2) - 10;
@@ -1218,8 +1247,10 @@ public class Gameplay {
                 String statusText = isOpen ? "Status: Open" : "Status: Closed (Night)";
                 Color statusColor = isOpen ? new Color(100, 230, 120) : new Color(180, 80, 80);
                 drawStrokedText(g2, statusText, textX, bodyY + 36, statusColor, new Color(8, 8, 8, 220), 1.5f);
-                drawStrokedText(g2, "Sells: up to 500 crops / 5s", textX, bodyY + 54, new Color(255, 200, 100), new Color(8, 8, 8, 220), 1.5f);
-                drawStrokedText(g2, "Rate: 0.5 coins / crop", textX, bodyY + 72, new Color(150, 200, 150), new Color(8, 8, 8, 220), 1.5f);
+                int sellCap = playerUpgrade.getShopMaxCrops(upgradeSystem.getShopCapLevel());
+                double coinRate = playerUpgrade.getShopCoinRate(upgradeSystem.getShopRateLevel());
+                drawStrokedText(g2, "Sells: up to " + sellCap + " crops / 5s", textX, bodyY + 54, new Color(255, 200, 100), new Color(8, 8, 8, 220), 1.5f);
+                drawStrokedText(g2, String.format("Rate: %.2f coins / crop", coinRate), textX, bodyY + 72, new Color(150, 200, 150), new Color(8, 8, 8, 220), 1.5f);
             } else {
             int maxWorkers = btype.getMaxWorkers();
             int maxCrops   = btype.getCropsPerSecond();
@@ -1227,7 +1258,8 @@ public class Gameplay {
             int effectiveWorkers = cachedWorkerMap.getOrDefault(selectedBuildingInfo, 0);
 
             double localRatio = maxWorkers > 0 ? (double) effectiveWorkers / maxWorkers : 0.0;
-            double effectiveCrops = Math.floor(localRatio * maxCrops * cachedTempEfficiency * 10.0) / 10.0;
+            double upgradeMult = playerUpgrade.getProductionMultiplier(upgradeSystem.getLevel(btype));
+            double effectiveCrops = Math.floor(localRatio * maxCrops * cachedTempEfficiency * upgradeMult * 10.0) / 10.0;
 
             // Temperature efficiency label (only show when not at 100%)
             int tempPct = (int) Math.round(cachedTempEfficiency * 100);
@@ -1272,7 +1304,264 @@ public class Gameplay {
                 new Color(8, 8, 8, 220),
                 1.5f
             );
+            int upgradeLevel = upgradeSystem.getLevel(btype);
+            if (upgradeLevel > 0) {
+                int pct = (int)(upgradeLevel * 10);
+                drawStrokedText(g2, "Upgrade: Lv " + upgradeLevel + " (+" + pct + "%)",
+                    textX, bodyY + 108, new Color(255, 200, 60), new Color(8, 8, 8, 220), 1.5f);
             }
+            }
+        }
+    }
+
+    // Draws the special upgrade-building panel listing all building types on the map
+    private void drawUpgradeBuildingPanel(Graphics2D g2, int panelX, int panelY, int panelW, int panelH) {
+        upgradeButtonHitboxes.clear();
+
+        // ── Title ────────────────────────────────────────────────────────────
+        Font titleFont = detailTitleFontCached != null ? detailTitleFontCached : new Font("Dialog", Font.BOLD, 18);
+        g2.setFont(titleFont);
+        String title = "Upgrade Center";
+        int titleX = panelX + panelW / 2 - g2.getFontMetrics().stringWidth(title) / 2;
+        int titleBaseY = panelY + 30;
+        drawStrokedText(g2, title, titleX, titleBaseY, Color.WHITE, new Color(8, 8, 8, 220), 2f);
+
+        g2.setColor(new Color(200, 200, 200, 80));
+        g2.drawLine(panelX + 10, titleBaseY + 6, panelX + panelW - 10, titleBaseY + 6);
+
+        // ── Collect unique building types (skip PATH, HOUSING, UPGRADE_BUILDING) ──
+        java.util.LinkedHashSet<BuildingType> typesOnMap = new java.util.LinkedHashSet<>();
+        for (int x = 0; x < gp.maxWorldCol; x++) {
+            for (int y = 0; y < gp.maxWorldRow; y++) {
+                BuildingInstance inst = buildingDataMap[x][y];
+                if (inst == null) continue;
+                BuildingType t = inst.getType();
+                if (t == BuildingType.UPGRADE_BUILDING
+                        || t == BuildingType.ROAD
+                        || t.getCategory() == BuildingType.BuildingCategory.HOUSING) continue;
+                typesOnMap.add(t);
+            }
+        }
+
+        Font bodyFont  = detailBodyFontCached != null ? detailBodyFontCached : new Font("Dialog", Font.BOLD, 13);
+        Font smallFont = bodyFont.deriveFont(11f);
+
+        int contentStartY = titleBaseY + 14;
+        int contentEndY   = panelY + panelH - 6;
+        int contentH      = contentEndY - contentStartY;
+
+        if (typesOnMap.isEmpty()) {
+            g2.setFont(bodyFont);
+            String msg = "No buildings to upgrade";
+            int mw = g2.getFontMetrics().stringWidth(msg);
+            drawStrokedText(g2, msg, panelX + panelW / 2 - mw / 2, panelY + panelH / 2,
+                new Color(160, 160, 160), new Color(8, 8, 8, 220), 1.5f);
+            return;
+        }
+
+        // Dynamic total height: SHOP gets taller entry for 2 buttons
+        int totalH = 0;
+        for (BuildingType t : typesOnMap) {
+            totalH += t == BuildingType.SHOP ? SHOP_UPGRADE_ENTRY_HEIGHT : UPGRADE_ENTRY_HEIGHT;
+        }
+
+        int maxScroll = Math.max(0, totalH - contentH);
+        upgradeListScrollOffset = Math.max(0, Math.min(upgradeListScrollOffset, maxScroll));
+
+        java.awt.Shape prevClip = g2.getClip();
+        g2.setClip(panelX, contentStartY, panelW, contentH);
+
+        int pad     = 8;
+        int imgSize = 42;
+        int entryX  = panelX;
+        int entryY  = contentStartY - upgradeListScrollOffset;
+
+        for (BuildingType btype : typesOnMap) {
+            boolean isShop = btype == BuildingType.SHOP;
+            int entryH = isShop ? SHOP_UPGRADE_ENTRY_HEIGHT : UPGRADE_ENTRY_HEIGHT;
+
+            int ey = entryY;
+            entryY += entryH;
+
+            if (ey + entryH < contentStartY) continue;
+            if (ey > contentEndY) break;
+
+            // Row background
+            g2.setColor(new Color(255, 255, 255, 12));
+            g2.fillRect(entryX + 4, ey + 1, panelW - 8, entryH - 3);
+
+            // Building thumbnail (top-aligned for SHOP, centered for others)
+            java.awt.image.BufferedImage[] frames = btype.getAnimationFrames();
+            int imgY = ey + (isShop ? 6 : (entryH - imgSize) / 2);
+            if (frames != null && frames.length > 0 && frames[0] != null) {
+                g2.drawImage(frames[0], entryX + pad, imgY, imgSize, imgSize, null);
+            } else {
+                g2.setColor(new Color(60, 60, 60, 200));
+                g2.fillRect(entryX + pad, imgY, imgSize, imgSize);
+            }
+
+            int textX = entryX + pad + imgSize + 6;
+            int barW = 11, barH = 7, barGap = 2;
+            int btnX = entryX + pad;
+            int btnW = panelW - pad * 2;
+
+            // Building name
+            g2.setFont(bodyFont);
+            String rawName = btype.name().toLowerCase().replace('_', ' ');
+            String nameStr = Character.toUpperCase(rawName.charAt(0)) + rawName.substring(1);
+            drawStrokedText(g2, nameStr, textX, ey + 16, Color.WHITE, new Color(8, 8, 8, 200), 1.5f);
+
+            if (isShop) {
+                // ── SHOP: two independent upgrade tracks ──────────────────────
+                int capLv  = upgradeSystem.getShopCapLevel();
+                int rateLv = upgradeSystem.getShopRateLevel();
+
+                g2.setFont(smallFont);
+
+                // Sell-capacity track
+                String capLabel = "Sell Cap  Lv " + capLv + " / " + playerUpgrade.getMaxLevel()
+                    + "  (" + playerUpgrade.getShopMaxCrops(capLv) + " crops/tick)";
+                drawStrokedText(g2, capLabel, textX, ey + 28, new Color(160, 210, 255), new Color(8, 8, 8, 200), 1.5f);
+                for (int i = 0; i < playerUpgrade.getMaxLevel(); i++) {
+                    g2.setColor(i < capLv ? new Color(80, 200, 80) : new Color(50, 50, 50, 200));
+                    g2.fillRect(textX + i * (barW + barGap), ey + 33, barW, barH);
+                    g2.setColor(new Color(0, 0, 0, 100));
+                    g2.drawRect(textX + i * (barW + barGap), ey + 33, barW, barH);
+                }
+
+                // Coin-rate track
+                String rateLabel = "Coin Rate Lv " + rateLv + " / " + playerUpgrade.getMaxLevel()
+                    + String.format("  (%.2f coins/crop)", playerUpgrade.getShopCoinRate(rateLv));
+                drawStrokedText(g2, rateLabel, textX, ey + 48, new Color(255, 200, 100), new Color(8, 8, 8, 200), 1.5f);
+                for (int i = 0; i < playerUpgrade.getMaxLevel(); i++) {
+                    g2.setColor(i < rateLv ? new Color(200, 160, 50) : new Color(50, 50, 50, 200));
+                    g2.fillRect(textX + i * (barW + barGap), ey + 53, barW, barH);
+                    g2.setColor(new Color(0, 0, 0, 100));
+                    g2.drawRect(textX + i * (barW + barGap), ey + 53, barW, barH);
+                }
+
+                drawUpgradeButton(g2, btnX, ey + 64, btnW, smallFont,
+                    upgradeSystem.canUpgradeShopCap(),
+                    playerUpgrade.getShopCapUpgradeCost(capLv),
+                    "Sell Cap", btype, 1);
+
+                drawUpgradeButton(g2, btnX, ey + 86, btnW, smallFont,
+                    upgradeSystem.canUpgradeShopRate(),
+                    playerUpgrade.getShopRateUpgradeCost(rateLv),
+                    "Coin Rate", btype, 2);
+
+            } else {
+                // ── Regular production: one upgrade track ─────────────────────
+                int level = upgradeSystem.getLevel(btype);
+
+                g2.setFont(smallFont);
+                drawStrokedText(g2, "Lv " + level + " / " + playerUpgrade.getMaxLevel(),
+                    textX, ey + 28, new Color(160, 210, 255), new Color(8, 8, 8, 200), 1.5f);
+
+                for (int i = 0; i < playerUpgrade.getMaxLevel(); i++) {
+                    g2.setColor(i < level ? new Color(80, 200, 80) : new Color(50, 50, 50, 200));
+                    g2.fillRect(textX + i * (barW + barGap), ey + 33, barW, barH);
+                    g2.setColor(new Color(0, 0, 0, 100));
+                    g2.drawRect(textX + i * (barW + barGap), ey + 33, barW, barH);
+                }
+
+                drawUpgradeButton(g2, btnX, ey + 64, btnW, smallFont,
+                    upgradeSystem.canUpgrade(btype),
+                    upgradeSystem.canUpgrade(btype) ? playerUpgrade.getUpgradeCost(btype, level) : 0L,
+                    null, btype, 0);
+            }
+
+            // Separator
+            g2.setColor(new Color(255, 255, 255, 25));
+            g2.drawLine(entryX + 6, ey + entryH - 2, entryX + panelW - 6, ey + entryH - 2);
+        }
+
+        g2.setClip(prevClip);
+
+        // Scrollbar
+        if (totalH > contentH) {
+            float frac   = (float) upgradeListScrollOffset / maxScroll;
+            int   trackH = contentH - 4;
+            int   thumbH = Math.max(20, (int)((float) contentH / totalH * trackH));
+            int   thumbY = contentStartY + 2 + (int)(frac * (trackH - thumbH));
+            g2.setColor(new Color(255, 255, 255, 30));
+            g2.fillRoundRect(panelX + panelW - 6, contentStartY + 2, 4, trackH, 3, 3);
+            g2.setColor(new Color(255, 255, 255, 110));
+            g2.fillRoundRect(panelX + panelW - 6, thumbY, 4, thumbH, 3, 3);
+        }
+    }
+
+    // Renders a single upgrade button and stores its hitbox.
+    // variant: 0=production, 1=shopCap, 2=shopRate
+    private void drawUpgradeButton(Graphics2D g2, int btnX, int btnY, int btnW, Font font,
+                                   boolean canUpgrade, long cost, String labelPrefix,
+                                   BuildingType btype, int variant) {
+        final int btnH = 18;
+        boolean maxed     = !canUpgrade;
+        boolean canAfford = !maxed && playerMoney >= cost;
+
+        String btnText = maxed ? "MAX LEVEL"
+            : (labelPrefix != null ? labelPrefix + ": " : "Upgrade: ") + formatMoney(cost);
+        Color btnBg = maxed      ? new Color(70, 70, 70, 160)
+                    : canAfford  ? new Color(35, 130, 55, 220)
+                                 : new Color(110, 35, 35, 200);
+        Color btnFg = maxed ? new Color(140, 140, 140) : Color.WHITE;
+
+        boolean hovered = !maxed
+            && mouseH.mouseX >= btnX && mouseH.mouseX <= btnX + btnW
+            && mouseH.mouseY >= btnY && mouseH.mouseY <= btnY + btnH;
+        if (hovered && canAfford)  btnBg = new Color(55, 170, 75, 240);
+        if (hovered && !canAfford) btnBg = new Color(140, 50, 50, 220);
+
+        g2.setColor(btnBg);
+        g2.fillRoundRect(btnX, btnY, btnW, btnH, 6, 6);
+        g2.setColor(new Color(0, 0, 0, 120));
+        g2.drawRoundRect(btnX, btnY, btnW, btnH, 6, 6);
+
+        g2.setFont(font);
+        int tw = g2.getFontMetrics().stringWidth(btnText);
+        drawStrokedText(g2, btnText, btnX + btnW / 2 - tw / 2, btnY + btnH - 4,
+            btnFg, new Color(8, 8, 8, 200), 1.5f);
+
+        if (!maxed) {
+            // {bx, by, bw, bh, ordinal, variant}
+            upgradeButtonHitboxes.add(new int[]{btnX, btnY, btnW, btnH, btype.ordinal(), variant});
+        }
+    }
+
+    // Handles clicks on upgrade buttons inside the upgrade building panel
+    private void handleUpgradeButtonClick(int mx, int my) {
+        BuildingType[] allTypes = BuildingType.values();
+        for (int[] hb : upgradeButtonHitboxes) {
+            int bx = hb[0], by = hb[1], bw = hb[2], bh = hb[3];
+            if (mx < bx || mx > bx + bw || my < by || my > by + bh) continue;
+
+            int variant = hb[5];
+            if (variant == 1) {
+                if (!upgradeSystem.canUpgradeShopCap()) return;
+                long cost = playerUpgrade.getShopCapUpgradeCost(upgradeSystem.getShopCapLevel());
+                if (playerMoney >= cost) {
+                    playerMoney -= (int) Math.min(cost, Integer.MAX_VALUE);
+                    upgradeSystem.upgradeShopCap();
+                }
+            } else if (variant == 2) {
+                if (!upgradeSystem.canUpgradeShopRate()) return;
+                long cost = playerUpgrade.getShopRateUpgradeCost(upgradeSystem.getShopRateLevel());
+                if (playerMoney >= cost) {
+                    playerMoney -= (int) Math.min(cost, Integer.MAX_VALUE);
+                    upgradeSystem.upgradeShopRate();
+                }
+            } else {
+                BuildingType btype = allTypes[hb[4]];
+                if (!upgradeSystem.canUpgrade(btype)) return;
+                long cost = playerUpgrade.getUpgradeCost(btype, upgradeSystem.getLevel(btype));
+                if (playerMoney >= cost) {
+                    playerMoney -= (int) Math.min(cost, Integer.MAX_VALUE);
+                    upgradeSystem.upgrade(btype);
+                    recalcIncomeCache();
+                }
+            }
+            return;
         }
     }
 
@@ -1343,9 +1632,14 @@ public class Gameplay {
         int panelX = getBuildingDetailPanelX();
         int panelY = BUILDING_INFO_PANEL_TOP_BOTTOM_MARGIN;
         int panelHeight = screenHeight - (BUILDING_INFO_PANEL_TOP_BOTTOM_MARGIN * 2);
-
+        int effectiveWidth = BUILDING_INFO_PANEL_WIDTH;
+        if (selectedBuildingInfo != null
+                && selectedBuildingInfo.getType() == BuildingType.UPGRADE_BUILDING) {
+            panelX    -= UPGRADE_PANEL_EXTRA_WIDTH;
+            effectiveWidth += UPGRADE_PANEL_EXTRA_WIDTH;
+        }
         return mouseX >= panelX
-            && mouseX <= panelX + BUILDING_INFO_PANEL_WIDTH
+            && mouseX <= panelX + effectiveWidth
             && mouseY >= panelY
             && mouseY <= panelY + panelHeight;
     }
@@ -1615,7 +1909,8 @@ public class Gameplay {
 
             cachedWorkerMap.put(prod, workersAssigned);
             double localRatio = maxW > 0 ? (double) workersAssigned / maxW : 0.0;
-            effectiveCrops += Math.floor(localRatio * prod.getType().getCropsPerSecond() * cachedTempEfficiency * 10.0) / 10.0;
+            double upgradeMult = playerUpgrade.getProductionMultiplier(upgradeSystem.getLevel(prod.getType()));
+            effectiveCrops += Math.floor(localRatio * prod.getType().getCropsPerSecond() * cachedTempEfficiency * upgradeMult * 10.0) / 10.0;
         }
         cachedTotalCrops = effectiveCrops;
 
