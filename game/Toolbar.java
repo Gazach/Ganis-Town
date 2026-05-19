@@ -23,6 +23,7 @@ public class Toolbar {
     private tooltips_toolbar tooltip;
     private BufferedImage trashNormal, trashHover, trashPress;
     private boolean isDeleteMode = false;
+    private int scrollOffset = 0;
     
     int toolbarHeight = 80;
     int btnSize = 64;
@@ -35,15 +36,9 @@ public class Toolbar {
         loadImages(); 
     }
 
-    /** Build the filtered list of buildings shown in the toolbar (skip DECORATION). */
+    /** All buildings shown in the toolbar (including DECORATION/trees). */
     private void initToolbarBuildings() {
-        java.util.List<BuildingType> list = new java.util.ArrayList<>();
-        for (BuildingType bt : BuildingType.values()) {
-            if (bt.getCategory() != BuildingType.BuildingCategory.DECORATION) {
-                list.add(bt);
-            }
-        }
-        toolbarBuildings = list.toArray(new BuildingType[0]);
+        toolbarBuildings = BuildingType.values();
     }
 
     private void loadImages() {
@@ -51,37 +46,43 @@ public class Toolbar {
         btnNormal = new BufferedImage[total];
         btnHover  = new BufferedImage[total];
 
-        // Urutan HARUS sama dengan urutan non-DECORATION entries di BuildingType.java
+        // Order MUST match BuildingType.values() order exactly
         String[] normalImages = {
-            "/asset/Toolbar/house_normal.png",        // HOUSE
-            "/asset/Toolbar/WheatFarm_normal.png",    // WHEAT
-            "/asset/Toolbar/corn_normal.png",         // CORN
-            "/asset/Toolbar/tomato_normal.png",       // TOMATO
-            "/asset/Toolbar/pumpkin_normal.png",      // PUMPKIN
-            "/asset/Toolbar/carrot_normal.png",       // CARROT
-            "/asset/Toolbar/building2x2_normal.png",  // BUILDING_2X2
-            "/asset/Toolbar/building2x3_normal.png",  // WINDMILL
-            "/asset/Toolbar/barn_normal.png",         // BARN
-            "/asset/RoadPath/Road.png",               // ROAD
-            "/asset/Toolbar/shop_normal.png",          // SHOP
+            "/asset/Toolbar/house_normal.png",           // HOUSE
+            "/asset/Toolbar/WheatFarm_normal.png",       // WHEAT
+            "/asset/Toolbar/corn_normal.png",            // CORN
+            "/asset/Toolbar/tomato_normal.png",          // TOMATO
+            "/asset/Toolbar/pumpkin_normal.png",         // PUMPKIN
+            "/asset/Toolbar/carrot_normal.png",          // CARROT
+            "/asset/Toolbar/building2x2_normal.png",     // BUILDING_2X2
+            "/asset/Toolbar/building2x3_normal.png",     // WINDMILL
+            "/asset/Toolbar/barn_normal.png",            // BARN
+            "/asset/RoadPath/Road.png",                  // ROAD
+            "/asset/Toolbar/shop_normal.png",            // SHOP
             "/asset/Toolbar/upgradeBuilding_normal.png", // UPGRADE_BUILDING
-            "/asset/Toolbar/house2_normal.png"         // HOUSE2 
+            "/asset/Toolbar/house2_normal.png",          // HOUSE2
+            "/asset/Buildings/tree1_frame1.png",         // TREE1
+            "/asset/Buildings/tree2_frame1.png",         // TREE2
+            "/asset/Buildings/tree3_frame1.png"          // TREE3
         };
 
         String[] hoverImages = {
-            "/asset/Toolbar/house_hover.png",         // HOUSE
-            "/asset/Toolbar/WheatFarm_hover.png",     // WHEAT
-            "/asset/Toolbar/corn_hover.png",          // CORN
-            "/asset/Toolbar/tomato_hover.png",        // TOMATO
-            "/asset/Toolbar/pumpkin_hover.png",       // PUMPKIN
-            "/asset/Toolbar/carrot_hover.png",        // CARROT
-            "/asset/Toolbar/building2x2_hover.png",   // BUILDING_2X2
-            "/asset/Toolbar/building2x3_hover.png",   // WINDMILL
-            "/asset/Toolbar/barn_hover.png",          // BARN
-            "/asset/RoadPath/Road.png",               // ROAD
-            "/asset/Toolbar/shop_hover.png",           // SHOP
-            "/asset/Toolbar/upgradeBuilding_hover.png", // UPGRADE_BUILDING
-            "/asset/Toolbar/house2_hover.png"         // HOUSE2
+            "/asset/Toolbar/house_hover.png",            // HOUSE
+            "/asset/Toolbar/WheatFarm_hover.png",        // WHEAT
+            "/asset/Toolbar/corn_hover.png",             // CORN
+            "/asset/Toolbar/tomato_hover.png",           // TOMATO
+            "/asset/Toolbar/pumpkin_hover.png",          // PUMPKIN
+            "/asset/Toolbar/carrot_hover.png",           // CARROT
+            "/asset/Toolbar/building2x2_hover.png",      // BUILDING_2X2
+            "/asset/Toolbar/building2x3_hover.png",      // WINDMILL
+            "/asset/Toolbar/barn_hover.png",             // BARN
+            "/asset/RoadPath/Road.png",                  // ROAD
+            "/asset/Toolbar/shop_hover.png",             // SHOP
+            "/asset/Toolbar/upgradeBuilding_hover.png",  // UPGRADE_BUILDING
+            "/asset/Toolbar/house2_hover.png",           // HOUSE2
+            "/asset/Buildings/tree1_frame1.png",         // TREE1
+            "/asset/Buildings/tree2_frame1.png",         // TREE2
+            "/asset/Buildings/tree3_frame1.png"          // TREE3
         };
 
         for (int i = 0; i < total; i++) {
@@ -128,13 +129,25 @@ public class Toolbar {
 
     public void draw(Graphics2D g2, int screenWidth, int screenHeight, int mouseX, int mouseY, Gameplay gameplay) {
         toolbarPanel.draw(g2, 0, screenHeight - toolbarHeight, screenWidth, toolbarHeight);
-        
+
+        // Clip buttons to the toolbar rectangle so they don't bleed outside
+        java.awt.Shape oldClip = g2.getClip();
+        g2.setClip(0, screenHeight - toolbarHeight, screenWidth, toolbarHeight);
+
         for (int i = 0; i < toolbarBuildings.length; i++) {
-            int x = btnPadding + i * (btnSize + btnPadding);
+            int x = btnPadding + i * (btnSize + btnPadding) - scrollOffset;
             int y = screenHeight - toolbarHeight + 8;
-            
+            if (x + btnSize < 0 || x > screenWidth) continue; // skip fully off-screen
             button.drawButton(g2, btnNormal[i], btnHover[i], x, y, btnSize, btnSize, mouseX, mouseY);
         }
+
+        g2.setClip(oldClip);
+
+        // Scroll-edge shadow hints
+        int totalWidth = toolbarBuildings.length * (btnSize + btnPadding) + btnPadding;
+        int maxScroll = Math.max(0, totalWidth - screenWidth);
+        if (scrollOffset > 0) drawScrollArrow(g2, screenWidth, screenHeight, false);          // left arrow
+        if (scrollOffset < maxScroll) drawScrollArrow(g2, screenWidth, screenHeight, true);   // right arrow
 
         // Draw trash/delete button — above toolbar, right side
         int trashX = screenWidth - btnSize - btnPadding;
@@ -147,15 +160,31 @@ public class Toolbar {
                 trashX, trashY, btnSize, btnSize, mouseX, mouseY, isDeleteMode);
         }
 
-        // Draw tooltip for whichever button is currently hovered
+        // Draw tooltip for whichever visible button is currently hovered
         for (int i = 0; i < toolbarBuildings.length; i++) {
-            int x = btnPadding + i * (btnSize + btnPadding);
+            int x = btnPadding + i * (btnSize + btnPadding) - scrollOffset;
             int y = screenHeight - toolbarHeight + 8;
+            if (x < 0 || x + btnSize > screenWidth) continue; // skip partially hidden
             if (button.isHovering(x, y, btnSize, btnSize, mouseX, mouseY)) {
                 tooltip.draw(g2, toolbarBuildings[i], x + btnSize / 2, y, screenWidth);
                 break;
             }
         }
+    }
+
+    /** Draw a small arrow indicator at the left or right edge of the toolbar. */
+    private void drawScrollArrow(Graphics2D g2, int screenWidth, int screenHeight, boolean right) {
+        int ay = screenHeight - toolbarHeight;
+        int midY = ay + toolbarHeight / 2;
+        int halfH = 10;
+        // Left arrow near x=12, right arrow near x=screenWidth-12
+        int cx = right ? screenWidth - 12 : 12;
+        int[] xp = right ? new int[]{cx - 8, cx - 8, cx} : new int[]{cx + 8, cx + 8, cx};
+        int[] yp = {midY - halfH, midY + halfH, midY};
+        g2.setColor(new java.awt.Color(255, 255, 255, 180));
+        g2.fillPolygon(xp, yp, 3);
+        g2.setColor(new java.awt.Color(0, 0, 0, 80));
+        g2.drawPolygon(xp, yp, 3);
     }
 
     public void handleClick(int mouseX, int mouseY, int screenHeight, Gameplay gameplay) {
@@ -216,12 +245,23 @@ public class Toolbar {
     
     public BuildingType getClickedBuilding(int mouseX, int mouseY, int screenHeight) {
         for (int i = 0; i < toolbarBuildings.length; i++) {
-            int x = btnPadding + i * (btnSize + btnPadding);
+            int x = btnPadding + i * (btnSize + btnPadding) - scrollOffset;
             int y = screenHeight - toolbarHeight + 8;
             if (button.isHovering(x, y, btnSize, btnSize, mouseX, mouseY)) {
                 return toolbarBuildings[i];
             }
         }
         return null;
+    }
+
+    /**
+     * Scroll the toolbar horizontally.
+     * @param delta positive = scroll right (content moves left), negative = scroll left
+     * @param screenWidth current screen/panel width for clamping
+     */
+    public void handleScroll(int delta, int screenWidth) {
+        int totalWidth = toolbarBuildings.length * (btnSize + btnPadding) + btnPadding;
+        int maxScroll = Math.max(0, totalWidth - screenWidth);
+        scrollOffset = Math.max(0, Math.min(maxScroll, scrollOffset + delta * (btnSize + btnPadding)));
     }
 }

@@ -405,8 +405,11 @@ public class Gameplay {
             roadPreviewTiles = new ArrayList<>();
         }
 
-        // Scroll the upgrade building list when the detail panel is open
-        if (selectedBuildingInfo != null && selectedBuildingInfo.getType() == BuildingType.UPGRADE_BUILDING) {
+        // Scroll: toolbar gets priority when mouse is over it, else upgrade panel
+        if (toolbar.isInsideToolbar(mouseH.mouseY, screenHeight)) {
+            int scroll = mouseH.consumeScrollUnits();
+            if (scroll != 0) toolbar.handleScroll(scroll, screenWidth);
+        } else if (selectedBuildingInfo != null && selectedBuildingInfo.getType() == BuildingType.UPGRADE_BUILDING) {
             int scroll = mouseH.consumeScrollUnits();
             if (scroll != 0) {
                 upgradeListScrollOffset = Math.max(0, upgradeListScrollOffset + scroll * 22);
