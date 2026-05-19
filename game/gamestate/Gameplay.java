@@ -76,16 +76,18 @@ public class Gameplay {
     private Font buildingInfoBodyFont;
     Toolbar toolbar = new Toolbar();
     private int playerMoney = 2500;
+    private int playerCrops = 0;
     private long lastIncomeTime = System.currentTimeMillis();
     private BufferedImage coinImage;
+    private BufferedImage cropImage;
     private BufferedImage personImage;
     private dayCycle dayTime = new dayCycle();
     private worldTemperature temperature = new worldTemperature();
 
     // cached values to avoid per-frame recalculation
-    private double cachedTotalIncome = 0.0;
+    private double cachedTotalCrops = 0.0;
     private int cachedTotalPopulation = 0;
-    private double incomeAccumulator = 0.0;
+    private double cropsAccumulator = 0.0;
     private Map<BuildingInstance, Integer> cachedWorkerMap = new HashMap<>();
     // Cached per-building alert lists — rebuilt in recalcIncomeCache() instead of every frame
     private Map<BuildingInstance, List<Alert>> cachedAlerts = new HashMap<>();
@@ -163,6 +165,7 @@ public class Gameplay {
         loadBuildingInfoFonts();
         loadCoinImage();
         loadPersonImage();
+        loadCropImage();
         buildGlowImage();
         bgMusic    = new Music_audio("/asset/Sound/Music/Jazz_background_music.wav");
         placeSFX   = new SoundEffect_audio("/asset/Sound/SoundEffect/Building_placement.wav");
@@ -212,6 +215,22 @@ public class Gameplay {
             }
         } catch (IOException e) {
             System.out.println("Failed to load person image: " + e.getMessage());
+        }
+    }
+
+    private void loadCropImage() {
+        try {
+            InputStream stream = getClass().getResourceAsStream("/asset/gameplayUI/crop_icon.png");
+            if (stream != null) {
+                cropImage = ImageIO.read(stream);
+                return;
+            }
+            File file = new File("asset/gameplayUI/crop_icon.png");
+            if (file.exists()) {
+                cropImage = ImageIO.read(file);
+            }
+        } catch (IOException e) {
+            System.out.println("Failed to load crop image: " + e.getMessage());
         }
     }
 
@@ -276,12 +295,13 @@ public class Gameplay {
         gp.cameraWorldX = gp.worldWidth / 2;
         gp.cameraWorldY = gp.worldHeight / 2;
         playerMoney = 22500;
+        playerCrops = 0;
         lastIncomeTime = System.currentTimeMillis();
         dayTime.setHour(6.0f);
         temperature = new worldTemperature();
-        cachedTotalIncome = 0.0;
+        cachedTotalCrops = 0.0;
         cachedTotalPopulation = 0;
-        incomeAccumulator = 0.0;
+        cropsAccumulator = 0.0;
         cachedAlerts.clear();
         npcSystem.clear();
         resetBuildModeState();
@@ -416,7 +436,7 @@ public class Gameplay {
         npcSystem.update();
     }
 
-    // Setiap detik, kumpulkan income dari semua bangunan yang sudah ditempatkan
+    // Setiap detik, kumpulkan crops dari semua bangunan produksi yang sudah ditempatkan
     private void tickBuildingIncome() {
         long now = System.currentTimeMillis();
         long elapsed = now - lastIncomeTime;
@@ -425,12 +445,12 @@ public class Gameplay {
         int seconds = (int) (elapsed / 1000);
         lastIncomeTime += seconds * 1000L;
 
-        if (cachedTotalIncome > 0) {
-            incomeAccumulator += cachedTotalIncome * seconds;
-            int wholeEarned = (int) incomeAccumulator;
+        if (cachedTotalCrops > 0) {
+            cropsAccumulator += cachedTotalCrops * seconds;
+            int wholeEarned = (int) cropsAccumulator;
             if (wholeEarned > 0) {
-                playerMoney += wholeEarned;
-                incomeAccumulator -= wholeEarned;
+                playerCrops += wholeEarned;
+                cropsAccumulator -= wholeEarned;
             }
         }
     }
@@ -1153,12 +1173,12 @@ public class Gameplay {
         } else {
             BuildingType btype = selectedBuildingInfo.getType();
             int maxWorkers = btype.getMaxWorkers();
-            int maxIncome  = btype.getIncomePerSecond();
+            int maxCrops   = btype.getCropsPerSecond();
 
             int effectiveWorkers = cachedWorkerMap.getOrDefault(selectedBuildingInfo, 0);
 
             double localRatio = maxWorkers > 0 ? (double) effectiveWorkers / maxWorkers : 0.0;
-            double effectiveIncome = Math.floor(localRatio * maxIncome * cachedTempEfficiency * 10.0) / 10.0;
+            double effectiveCrops = Math.floor(localRatio * maxCrops * cachedTempEfficiency * 10.0) / 10.0;
 
             // Temperature efficiency label (only show when not at 100%)
             int tempPct = (int) Math.round(cachedTempEfficiency * 100);
@@ -1178,7 +1198,7 @@ public class Gameplay {
             );
             drawStrokedText(
                 g2,
-                "Income: +" + formatIncome(effectiveIncome) + "/s",
+                "Crops: +" + formatIncome(effectiveCrops) + "/s",
                 textX,
                 bodyY + 54,
                 new Color(100, 230, 120),
@@ -1187,7 +1207,7 @@ public class Gameplay {
             );
             drawStrokedText(
                 g2,
-                "Max income: +" + maxIncome + "/s",
+                "Max crops: +" + maxCrops + "/s",
                 textX,
                 bodyY + 72,
                 new Color(150, 200, 150),
@@ -1512,7 +1532,7 @@ public class Gameplay {
 
         // ── Distribute workers via road connectivity ───────────────────────
         cachedWorkerMap.clear();
-        double effectiveIncome = 0.0;
+        double effectiveCrops = 0.0;
 
         for (int pi : prodOrder) {
             BuildingInstance prod = prodList.get(pi);
@@ -1545,9 +1565,9 @@ public class Gameplay {
 
             cachedWorkerMap.put(prod, workersAssigned);
             double localRatio = maxW > 0 ? (double) workersAssigned / maxW : 0.0;
-            effectiveIncome += Math.floor(localRatio * prod.getType().getIncomePerSecond() * cachedTempEfficiency * 10.0) / 10.0;
+            effectiveCrops += Math.floor(localRatio * prod.getType().getCropsPerSecond() * cachedTempEfficiency * 10.0) / 10.0;
         }
-        cachedTotalIncome = effectiveIncome;
+        cachedTotalCrops = effectiveCrops;
 
         // Sync NPC count (75% of population) and road tile list after every recalc
         npcSystem.rebuildRoadList(buildingsMap, gp.maxWorldCol, gp.maxWorldRow);
@@ -1614,14 +1634,12 @@ public class Gameplay {
         int boxY = 8;
 
         String moneyText = formatMoney(playerMoney);
-        String incomeText = cachedTotalIncome > 0 ? "  +" + formatIncome(cachedTotalIncome) + "/s" : "";
         String popDivider = "  |  ";
         String populationText = String.valueOf(cachedTotalPopulation);
         String timeDivider = "  |  ";
         String timeText = dayTime.getTimeLabel() + "  " + dayTime.getPeriodName()
             + "   " + temperature.getTempLabel(dayTime.getHour());
         int textWidth       = g2.getFontMetrics().stringWidth(moneyText);
-        int incomeWidth     = g2.getFontMetrics().stringWidth(incomeText);
         int popDividerWidth = g2.getFontMetrics().stringWidth(popDivider);
         int populationWidth = g2.getFontMetrics().stringWidth(populationText);
         int timeDividerWidth = g2.getFontMetrics().stringWidth(timeDivider);
@@ -1632,7 +1650,7 @@ public class Gameplay {
         // Warna teks untuk waktu dan temperatur berubah berdasarkan darkness, semakin gelap semakin mendekati warna oranye, semakin terang mendekati warna putih
         float darkness = dayTime.getDarkness();
 
-        int boxW = iconSlot + textWidth + incomeWidth + popDividerWidth + personIconSlot + populationWidth + timeDividerWidth + timeTextWidth + innerPadX * 2;
+        int boxW = iconSlot + textWidth + popDividerWidth + personIconSlot + populationWidth + timeDividerWidth + timeTextWidth + innerPadX * 2;
 
         hudPanelSkin.draw(g2, boxX, boxY, boxW, boxH);
 
@@ -1647,19 +1665,7 @@ public class Gameplay {
         drawStrokedText(g2, moneyText, contentX, textBaseY,
             new Color(255, 220, 60), new Color(0, 0, 0, 220), 1.5f);
 
-        if (!incomeText.isEmpty()) {
-            drawStrokedText(
-                g2,
-                incomeText,
-                contentX + textWidth,
-                textBaseY,
-                new Color(100, 230, 120),
-                new Color(0, 0, 0, 220),
-                1.5f
-            );
-        }
-
-        int popDividerX = contentX + textWidth + incomeWidth;
+        int popDividerX = contentX + textWidth;
         drawStrokedText(g2, popDivider, popDividerX, textBaseY,
             new Color(180, 180, 180), new Color(0, 0, 0, 220), 1.5f);
         int personIconX = popDividerX + popDividerWidth;
@@ -1681,6 +1687,28 @@ public class Gameplay {
         drawStrokedText(g2, timeText, dividerX + timeDividerWidth, textBaseY,
             new Color(Math.min(tr,255), Math.min(tg,255), Math.min(tb,255)),
             new Color(0, 0, 0, 220), 1.5f);
+
+        // Crops panel — below the money panel
+        int cropsBoxY = boxY + boxH + 4;
+        String cropsText = formatMoney(playerCrops);
+        String cropsRateText = cachedTotalCrops > 0 ? "  +" + formatIncome(cachedTotalCrops) + "/s" : "";
+        int cropsTextWidth = g2.getFontMetrics().stringWidth(cropsText);
+        int cropsRateWidth = g2.getFontMetrics().stringWidth(cropsRateText);
+        int cropIconSlot = (cropImage != null) ? coinSize + gap : 0;
+        int cropsBoxW = cropIconSlot + cropsTextWidth + cropsRateWidth + innerPadX * 2;
+        hudPanelSkin.draw(g2, boxX, cropsBoxY, cropsBoxW, boxH);
+        int cropsContentX = boxX + innerPadX;
+        int cropsBaseY = cropsBoxY + boxH - 8;
+        if (cropImage != null) {
+            g2.drawImage(cropImage, cropsContentX, cropsBoxY + (boxH - coinSize) / 2, coinSize, coinSize, null);
+            cropsContentX += coinSize + gap;
+        }
+        drawStrokedText(g2, cropsText, cropsContentX, cropsBaseY,
+            new Color(150, 220, 80), new Color(0, 0, 0, 220), 1.5f);
+        if (!cropsRateText.isEmpty()) {
+            drawStrokedText(g2, cropsRateText, cropsContentX + cropsTextWidth, cropsBaseY,
+                new Color(100, 230, 120), new Color(0, 0, 0, 220), 1.5f);
+        }
 
         // Kalau sedang dalam build mode dan bangunan dipilih, tampilkan harga bangunan
         BuildingType selected = toolbar.getSelectedBuilding();
@@ -1704,7 +1732,7 @@ public class Gameplay {
             int pw = g2.getFontMetrics().stringWidth(priceText);
             int pIconSlot = (coinImage != null) ? coinSize + gap : 0;
             int pBoxX = 8;
-            int pBoxY = boxY + boxH + 4;
+            int pBoxY = cropsBoxY + boxH + 4;
             int pBoxW = pIconSlot + pw + innerPadX * 2;
 
             hudPanelSkin.draw(g2, pBoxX, pBoxY, pBoxW, boxH);

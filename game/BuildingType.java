@@ -11,7 +11,7 @@ public enum BuildingType {
     //
     // Kategori:
     //   HOUSING  → bangunan tempat tinggal, memberikan populasi (minPeople–maxPeople) per unit, incomePerSecond = 0
-    //   PRODUCTION → bangunan produksi, menghasilkan uang per detik, minPeople/maxPeople = 0
+    //   PRODUCTION → bangunan produksi, menghasilkan crops per detik, minPeople/maxPeople = 0
     //  PATH     → jalan, tidak memberikan populasi atau uang, tapi diperlukan untuk akses pekerja dan konektivitas
     //                  w          h        price        category                    minP            maxP         maxW income/s  animFrameCount  animSpeed  assetName
     HOUSE(          1, 1,   500, BuildingCategory.HOUSING,    2,   4,  0,  0,  0,  1,  "building_1x1"),
@@ -41,14 +41,14 @@ public enum BuildingType {
     private final int minPeople;
     private final int maxPeople;
     private final int maxWorkers;
-    private final int incomePerSecond;
+    private final int cropsPerSecond;
     private final int animationFrameCount;
     private final int animationSpeed;
     private final String assetName;
     private BufferedImage[] animationFrames;
 
     BuildingType(int width, int height, int price, BuildingCategory category,
-                 int minPeople, int maxPeople, int maxWorkers, int incomePerSecond, int animationFrameCount, int animationSpeed, String assetName) {
+                 int minPeople, int maxPeople, int maxWorkers, int cropsPerSecond, int animationFrameCount, int animationSpeed, String assetName) {
         this.width          = width;
         this.height         = height;
         this.price          = price;
@@ -56,7 +56,7 @@ public enum BuildingType {
         this.minPeople      = minPeople;
         this.maxPeople      = maxPeople;
         this.maxWorkers     = maxWorkers;
-        this.incomePerSecond = incomePerSecond;
+        this.cropsPerSecond = cropsPerSecond;
         this.animationFrameCount = animationFrameCount;
         this.animationSpeed = animationSpeed;
         this.assetName      = assetName;
@@ -91,7 +91,7 @@ public enum BuildingType {
     public int getMinPeople()        { return minPeople; }
     public int getMaxPeople()        { return maxPeople; }
     public int getMaxWorkers()       { return maxWorkers; }
-    public int getIncomePerSecond()  { return incomePerSecond; }
+    public int getCropsPerSecond()   { return cropsPerSecond; }
     public int getAnimationFrameCount() { return animationFrameCount; }
     public int getAnimationSpeed()       { return animationSpeed; }
     public String getAssetName()         { return assetName; }
