@@ -41,6 +41,10 @@ public class Toolbar {
         String[] normalImages = {
             "/asset/Toolbar/house_normal.png",        // HOUSE
             "/asset/Toolbar/WheatFarm_normal.png",    // WHEAT
+            "/asset/Toolbar/corn_normal.png",         // CORN
+            "/asset/Toolbar/tomato_normal.png",       // TOMATO
+            "/asset/Toolbar/pumpkin_normal.png",      // PUMPKIN
+            "/asset/Toolbar/carrot_normal.png",       // CARROT
             "/asset/Toolbar/building2x2_normal.png",  // BUILDING_2X2
             "/asset/Toolbar/building2x3_normal.png",  // WINDMILL
             "/asset/Toolbar/barn_normal.png",         // BARN
@@ -50,6 +54,10 @@ public class Toolbar {
         String[] hoverImages = {
             "/asset/Toolbar/house_hover.png",         // HOUSE
             "/asset/Toolbar/WheatFarm_hover.png",     // WHEAT
+            "/asset/Toolbar/corn_hover.png",          // CORN
+            "/asset/Toolbar/tomato_hover.png",        // TOMATO
+            "/asset/Toolbar/pumpkin_hover.png",       // PUMPKIN
+            "/asset/Toolbar/carrot_hover.png",        // CARROT
             "/asset/Toolbar/building2x2_hover.png",   // BUILDING_2X2
             "/asset/Toolbar/building2x3_hover.png",   // WINDMILL
             "/asset/Toolbar/barn_hover.png",          // BARN
