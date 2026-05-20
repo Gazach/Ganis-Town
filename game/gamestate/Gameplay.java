@@ -822,7 +822,7 @@ public class Gameplay {
         for (int x = 0; x < gp.maxWorldCol; x++) {
             for (int y = 0; y < gp.maxWorldRow; y++) {
                 BuildingInstance instance = buildingDataMap[x][y];
-                if (instance != null && instance.getName().equals(name)) {
+                if (instance != null && name.equals(instance.getName())) {
                     return true;
                 }
             }
